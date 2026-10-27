@@ -83,6 +83,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         wl.state = Settings.showWindowlessApps ? .on : .off; wl.target = self
         m.addItem(wl)
 
+        let dbg = NSMenu()
+        for (title, mode) in [("Off (no key hook)", HotKeyMonitor.Mode.off),
+                              ("Listen only (shortcuts won't act)", .listenOnly),
+                              ("Active", .active)] {
+            let it = NSMenuItem(title: title, action: #selector(pickHookMode(_:)), keyEquivalent: "")
+            it.representedObject = mode.rawValue; it.target = self
+            it.state = monitor.mode == mode ? .on : .off
+            dbg.addItem(it)
+        }
+        let dbgItem = NSMenuItem(title: "Debug: keyboard hook mode", action: nil, keyEquivalent: "")
+        dbgItem.submenu = dbg
+        m.addItem(dbgItem)
+
         m.addItem(.separator())
         let login = NSMenuItem(title: "Launch at login", action: #selector(toggleLogin), keyEquivalent: "")
         login.state = LoginItem.isEnabled ? .on : .off; login.target = self
@@ -96,6 +109,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // Re-evaluate on every open so the status lines are current.
         if !monitor.isRunning { tick() }
         if menu.items.isEmpty { return }
+        rebuildMenu()
+    }
+
+    @objc private func pickHookMode(_ s: NSMenuItem) {
+        if let raw = s.representedObject as? String, let m = HotKeyMonitor.Mode(rawValue: raw) { monitor.setMode(m) }
         rebuildMenu()
     }
 

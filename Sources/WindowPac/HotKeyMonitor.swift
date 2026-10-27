@@ -13,6 +13,25 @@ final class HotKeyMonitor {
     private let relevant: CGEventFlags = [.maskShift, .maskControl, .maskAlternate, .maskCommand]
 
     var isRunning: Bool { tap != nil }
+
+    /// Debug aid: .active swallows/handles shortcuts, .listenOnly only observes, .off removes the tap.
+    enum Mode: String { case off, listenOnly, active }
+    private(set) var mode = Mode.active
+    private var source: CFRunLoopSource?
+
+    func setMode(_ m: Mode) {
+        mode = m
+        stop()
+        if m != .off { start() }
+    }
+
+    private func stop() {
+        guard let t = tap else { return }
+        CGEvent.tapEnable(tap: t, enable: false)
+        if let source { CFRunLoopRemoveSource(CFRunLoopGetMain(), source, .commonModes) }
+        CFMachPortInvalidate(t)
+        tap = nil; source = nil; tabHeld = false
+    }
     /// Last key-down seen by the tap, shown in the menu for troubleshooting.
     /// True from a swallowed Tab key-down until its key-up, so a Tab still held after ⌥ is released
     /// (auto-repeat, late key-up) never reaches the frontmost app.
@@ -22,7 +41,7 @@ final class HotKeyMonitor {
 
     @discardableResult
     func start() -> Bool {
-        guard tap == nil else { return true }
+        guard tap == nil, mode != .off else { return tap != nil }
         let mask = (1 << CGEventType.keyDown.rawValue) | (1 << CGEventType.keyUp.rawValue)
                  | (1 << CGEventType.flagsChanged.rawValue)
         let cb: CGEventTapCallBack = { _, type, event, refcon in
@@ -31,11 +50,12 @@ final class HotKeyMonitor {
             return me.handle(type, event)
         }
         guard let t = CGEvent.tapCreate(tap: .cgSessionEventTap, place: .headInsertEventTap,
-                                        options: .defaultTap, eventsOfInterest: CGEventMask(mask),
+                                        options: mode == .listenOnly ? .listenOnly : .defaultTap, eventsOfInterest: CGEventMask(mask),
                                         callback: cb, userInfo: Unmanaged.passUnretained(self).toOpaque())
         else { return false }
         tap = t
-        CFRunLoopAddSource(CFRunLoopGetMain(), CFMachPortCreateRunLoopSource(nil, t, 0), .commonModes)
+        source = CFMachPortCreateRunLoopSource(nil, t, 0)
+        CFRunLoopAddSource(CFRunLoopGetMain(), source, .commonModes)
         CGEvent.tapEnable(tap: t, enable: true)
         return true
     }
