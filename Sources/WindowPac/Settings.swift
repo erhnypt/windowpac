@@ -1,25 +1,23 @@
 import Cocoa
 
-/// Modifier combination used for window snapping (default ⌥, like Windows' Win key).
+/// Modifier combination used for window snapping (default ⌘⌥).
 /// Adding ⇧ on top of it triggers the "move to other display / full screen" variants.
 enum SnapModifier: String, CaseIterable {
-    case opt, ctrlOpt, ctrlCmd, optCmd
+    case optCmd, ctrlOpt, ctrlCmd
 
     var flags: CGEventFlags {
         switch self {
-        case .opt:     return [.maskAlternate]
+        case .optCmd:  return [.maskAlternate, .maskCommand]
         case .ctrlOpt: return [.maskControl, .maskAlternate]
         case .ctrlCmd: return [.maskControl, .maskCommand]
-        case .optCmd:  return [.maskAlternate, .maskCommand]
         }
     }
 
     var title: String {
         switch self {
-        case .opt:     return "⌥ + Arrow"
+        case .optCmd:  return "⌘⌥ + Arrow"
         case .ctrlOpt: return "⌃⌥ + Arrow"
         case .ctrlCmd: return "⌃⌘ + Arrow"
-        case .optCmd:  return "⌥⌘ + Arrow"
         }
     }
 }
@@ -28,8 +26,8 @@ enum Settings {
     private static let d = UserDefaults.standard
 
     static var snapModifier: SnapModifier {
-        get { SnapModifier(rawValue: d.string(forKey: "snapModifier") ?? "") ?? .opt }
-        set { d.set(newValue.rawValue, forKey: "snapModifier") }
+        get { SnapModifier(rawValue: d.string(forKey: "snapModifierV2") ?? "") ?? .optCmd }
+        set { d.set(newValue.rawValue, forKey: "snapModifierV2") }
     }
     static var snapEnabled: Bool {
         get { d.object(forKey: "snapEnabled") as? Bool ?? true }

@@ -5,16 +5,15 @@ Menu-bar app, no Dock icon.
 
 ## Shortcuts
 
-Default modifier is **⌥** (the Windows-key equivalent; changeable from the menu: ⌥, ⌃⌥, ⌃⌘, ⌥⌘).
-When keyboard focus is in a text field the arrows pass through untouched, so ⌥+← word-jumping still works there.
+Default modifier is **⌘⌥** (changeable from the menu: ⌘⌥, ⌃⌥, ⌃⌘). Plain ⌥+Arrow is not used because it is word-jumping in text fields.
 
 | Keys | Action |
 |---|---|
-| mod + ← / → | Snap to left / right half. Press again on a snapped window → continues to the next display |
-| mod + ↑ | Fill the screen (maximize) |
-| mod + ↓ | Restore previous size, otherwise minimize |
-| mod + ⇧ + ← / → | Move window to the previous / next display (keeps relative size) |
-| mod + ⇧ + ↑ / ↓ | Enter / exit native full screen |
+| ⌘⌥ + ← / → | Snap to left / right half. Press again on a snapped window → continues to the next display |
+| ⌘⌥ + ↑ | Fill the screen (maximize) |
+| ⌘⌥ + ↓ | Restore previous size, otherwise minimize |
+| ⌘⌥ + ⇧ + ← / → | Move window to the previous / next display (keeps relative size) |
+| ⌘⌥ + ⇧ + ↑ / ↓ | Enter / exit native full screen |
 | ⌥⇥ / ⌥⇧⇥ | Alt-Tab over **every window** on all displays and Spaces, including minimized ones. Release ⌥ to switch, Esc to cancel |
 
 ## Build & install (on a Mac)
