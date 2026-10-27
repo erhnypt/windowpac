@@ -39,6 +39,11 @@ enum Settings {
         get { d.object(forKey: "switcherEnabled") as? Bool ?? true }
         set { d.set(newValue, forKey: "switcherEnabled") }
     }
+    /// Also list running apps that have no window (closed with ⌘W, not quit with ⌘Q).
+    static var showWindowlessApps: Bool {
+        get { d.bool(forKey: "showWindowlessApps") }
+        set { d.set(newValue, forKey: "showWindowlessApps") }
+    }
     /// True once we auto-registered the login item (so a user opt-out sticks).
     static var loginItemConfigured: Bool {
         get { d.bool(forKey: "loginItemConfigured") }

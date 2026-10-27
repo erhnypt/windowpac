@@ -8,6 +8,7 @@ struct WinItem {
     let icon: NSImage?
     let ax: AXUIElement?       // nil: window lives on another Space and AX can't see it
     let minimized: Bool
+    var noWindow = false       // running app without any window
 }
 
 /// Windows-style Alt-Tab: one entry per *window* (not per app), across all
@@ -32,7 +33,7 @@ final class Switcher {
 
         var ranked: [(Int, WinItem)] = []
         var seen = Set<CGWindowID>()
-        var axCountByPid: [pid_t: Int] = [:]
+        var pidsWithItems = Set<pid_t>()
 
         for app in NSWorkspace.shared.runningApplications where app.activationPolicy == .regular {
             let axApp = AXUIElementCreateApplication(app.processIdentifier)
@@ -45,7 +46,7 @@ final class Switcher {
                 var id: CGWindowID = 0
                 let hasID = _AXUIElementGetWindow(w, &id) == .success
                 if hasID { seen.insert(id) }
-                axCountByPid[app.processIdentifier, default: 0] += 1
+                pidsWithItems.insert(app.processIdentifier)
                 let title = str(w, kAXTitleAttribute) ?? ""
                 let mini = (try? bool(w, kAXMinimizedAttribute)) ?? false
                 let item = WinItem(pid: app.processIdentifier, appName: app.localizedName ?? "?",
@@ -65,9 +66,20 @@ final class Switcher {
                   let b = d[kCGWindowBounds as String] as? [String: CGFloat],
                   (b["Width"] ?? 0) >= 200, (b["Height"] ?? 0) >= 100 else { continue }
             let title = d[kCGWindowName as String] as? String ?? ""
+            pidsWithItems.insert(pid)
             ranked.append((order[n] ?? Int.max,
                            WinItem(pid: pid, appName: app.localizedName ?? "?", title: title,
                                    icon: app.icon, ax: nil, minimized: false)))
+        }
+
+        if Settings.showWindowlessApps {
+            for app in NSWorkspace.shared.runningApplications
+            where app.activationPolicy == .regular && !pidsWithItems.contains(app.processIdentifier) {
+                var item = WinItem(pid: app.processIdentifier, appName: app.localizedName ?? "?", title: "",
+                                   icon: app.icon, ax: nil, minimized: false)
+                item.noWindow = true
+                ranked.append((Int.max, item))
+            }
         }
 
         return ranked.sorted { $0.0 < $1.0 }.map { $0.1 }
@@ -114,6 +126,14 @@ final class Switcher {
 
     static func activate(_ item: WinItem) {
         guard let app = NSRunningApplication(processIdentifier: item.pid) else { return }
+        if item.noWindow {
+            // Asking the app to "reopen" makes most apps create a new window (like clicking its Dock icon).
+            app.unhide()
+            if let url = app.bundleURL {
+                NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
+            } else { app.activate(options: [.activateIgnoringOtherApps]) }
+            return
+        }
         if let ax = item.ax {
             if item.minimized { AXUIElementSetAttributeValue(ax, kAXMinimizedAttribute as CFString, false as CFBoolean) }
             app.activate(options: [.activateIgnoringOtherApps])
@@ -180,9 +200,9 @@ private final class SwitcherView: NSView {
             }
             let icon = CGRect(x: r.midX - 28, y: r.minY + 8, width: 56, height: 56)
             it.icon?.draw(in: icon, from: .zero, operation: .sourceOver,
-                          fraction: it.minimized ? 0.45 : 1, respectFlipped: true, hints: nil)
+                          fraction: (it.minimized || it.noWindow) ? 0.45 : 1, respectFlipped: true, hints: nil)
             let name = it.title.isEmpty ? it.appName : it.title
-            let sub = it.title.isEmpty ? "" : it.appName + (it.minimized ? " · minimized" : "")
+            let sub = it.noWindow ? "no window" : (it.title.isEmpty ? "" : it.appName + (it.minimized ? " · minimized" : ""))
             NSAttributedString(string: name, attributes: [.font: NSFont.systemFont(ofSize: 12, weight: .medium), .foregroundColor: NSColor.labelColor, .paragraphStyle: para]).draw(in: CGRect(x: r.minX + 4, y: r.minY + 68, width: r.width - 8, height: 16))
             let subText = sub.isEmpty && it.minimized ? "minimized" : sub
             NSAttributedString(string: subText, attributes: [.font: NSFont.systemFont(ofSize: 10), .foregroundColor: NSColor.secondaryLabelColor, .paragraphStyle: para]).draw(in: CGRect(x: r.minX + 4, y: r.minY + 86, width: r.width - 8, height: 14))

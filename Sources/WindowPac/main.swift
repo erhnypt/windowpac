@@ -79,6 +79,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         sw.state = Settings.switcherEnabled ? .on : .off; sw.target = self
         m.addItem(sw)
 
+        let wl = NSMenuItem(title: "Alt-Tab: include apps without windows", action: #selector(toggleWindowless), keyEquivalent: "")
+        wl.state = Settings.showWindowlessApps ? .on : .off; wl.target = self
+        m.addItem(wl)
+
         m.addItem(.separator())
         let login = NSMenuItem(title: "Launch at login", action: #selector(toggleLogin), keyEquivalent: "")
         login.state = LoginItem.isEnabled ? .on : .off; login.target = self
@@ -97,6 +101,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     @objc private func toggleSnap() { Settings.snapEnabled.toggle(); rebuildMenu() }
     @objc private func toggleSwitcher() { Settings.switcherEnabled.toggle(); rebuildMenu() }
+    @objc private func toggleWindowless() { Settings.showWindowlessApps.toggle(); rebuildMenu() }
     @objc private func toggleLogin() { LoginItem.set(!LoginItem.isEnabled); rebuildMenu() }
     @objc private func pickModifier(_ s: NSMenuItem) {
         if let raw = s.representedObject as? String, let m = SnapModifier(rawValue: raw) { Settings.snapModifier = m }
