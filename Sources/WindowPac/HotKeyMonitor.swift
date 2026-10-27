@@ -13,6 +13,9 @@ final class HotKeyMonitor {
     private let relevant: CGEventFlags = [.maskShift, .maskControl, .maskAlternate, .maskCommand]
 
     var isRunning: Bool { tap != nil }
+    /// Last key-down seen by the tap, shown in the menu for troubleshooting.
+    private(set) var lastSeen = "none yet"
+    private(set) var lastResult = ""
 
     @discardableResult
     func start() -> Bool {
@@ -65,6 +68,9 @@ final class HotKeyMonitor {
         case .keyDown:
             let key = event.getIntegerValueField(.keyboardEventKeycode)
             let mods = event.flags.intersection(relevant)
+            if !mods.isEmpty {
+                lastSeen = "key \(key) flags \(mods.rawValue >> 16) (⌥ ⇒ 8, ⌃ ⇒ 4, ⇧ ⇒ 2, ⌘ ⇒ 16)"
+            }
 
             // ---- Alt-Tab switcher (⌥⇥ / ⌥⇧⇥) ----
             if switcher.isActive {
@@ -97,7 +103,8 @@ final class HotKeyMonitor {
                 let withShift = mods == base.union(.maskShift)
                 guard mods == base || withShift else { return pass }
                 // ⌥/⇧+arrows are text navigation: leave them alone inside text inputs.
-                if focusIsTextInput() { return pass }
+                if focusIsTextInput() { lastResult = "ignored: text field focused"; return pass }
+                lastResult = "handled"
                 let action: SnapAction
                 switch (key, withShift) {
                 case (Key.left, false):  action = .left

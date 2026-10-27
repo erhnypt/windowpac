@@ -48,7 +48,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let ax = AXIsProcessTrusted(), im = CGPreflightListenEventAccess()
         for line in ["Accessibility: \(ax ? "✓" : "✗ missing")",
                      "Input Monitoring: \(im ? "✓" : "✗ missing")",
-                     "Keyboard hook: \(monitor.isRunning ? "✓ running" : "✗ not running")"] {
+                     "Keyboard hook: \(monitor.isRunning ? "✓ running" : "✗ not running")",
+                     "Last key: \(monitor.lastSeen)",
+                     "Last snap: \(monitor.lastResult.isEmpty ? "-" : monitor.lastResult)"] {
             let it = NSMenuItem(title: line, action: nil, keyEquivalent: ""); it.isEnabled = false
             m.addItem(it)
         }
