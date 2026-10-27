@@ -182,13 +182,9 @@ private final class SwitcherView: NSView {
                           fraction: it.minimized ? 0.45 : 1, respectFlipped: true, hints: nil)
             let name = it.title.isEmpty ? it.appName : it.title
             let sub = it.title.isEmpty ? "" : it.appName + (it.minimized ? " · minimized" : "")
-            (name as NSString).draw(in: CGRect(x: r.minX + 4, y: r.minY + 68, width: r.width - 8, height: 16),
-                attributes: [.font: NSFont.systemFont(ofSize: 12, weight: .medium),
-                             .foregroundColor: NSColor.labelColor, .paragraphStyle: para])
+            NSAttributedString(string: name, attributes: [.font: NSFont.systemFont(ofSize: 12, weight: .medium), .foregroundColor: NSColor.labelColor, .paragraphStyle: para]).draw(in: CGRect(x: r.minX + 4, y: r.minY + 68, width: r.width - 8, height: 16))
             let subText = sub.isEmpty && it.minimized ? "minimized" : sub
-            (subText as NSString).draw(in: CGRect(x: r.minX + 4, y: r.minY + 86, width: r.width - 8, height: 14),
-                attributes: [.font: NSFont.systemFont(ofSize: 10),
-                             .foregroundColor: NSColor.secondaryLabelColor, .paragraphStyle: para])
+            NSAttributedString(string: subText, attributes: [.font: NSFont.systemFont(ofSize: 10), .foregroundColor: NSColor.secondaryLabelColor, .paragraphStyle: para]).draw(in: CGRect(x: r.minX + 4, y: r.minY + 86, width: r.width - 8, height: 14))
         }
     }
 }
