@@ -14,6 +14,9 @@ final class HotKeyMonitor {
 
     var isRunning: Bool { tap != nil }
     /// Last key-down seen by the tap, shown in the menu for troubleshooting.
+    /// True from a swallowed Tab key-down until its key-up, so a Tab still held after ⌥ is released
+    /// (auto-repeat, late key-up) never reaches the frontmost app.
+    private var tabHeld = false
     private(set) var lastSeen = "none yet"
     private(set) var lastResult = ""
 
@@ -42,6 +45,7 @@ final class HotKeyMonitor {
 
         switch type {
         case .tapDisabledByTimeout, .tapDisabledByUserInput:
+            tabHeld = false
             if let tap { CGEvent.tapEnable(tap: tap, enable: true) }
             return pass
 
@@ -52,8 +56,10 @@ final class HotKeyMonitor {
             return pass
 
         case .keyUp:
-            // Swallow the Tab key-up that belongs to a swallowed key-down.
-            if switcher.isActive, event.getIntegerValueField(.keyboardEventKeycode) == Key.tab { return nil }
+            if event.getIntegerValueField(.keyboardEventKeycode) == Key.tab, tabHeld {
+                tabHeld = false
+                return nil
+            }
             return pass
 
         case .keyDown:
@@ -63,10 +69,17 @@ final class HotKeyMonitor {
                 lastSeen = "key \(key) flags \(mods.rawValue >> 16) (⌥ ⇒ 8, ⌃ ⇒ 4, ⇧ ⇒ 2, ⌘ ⇒ 16)"
             }
 
+            if key == Key.tab, tabHeld {
+                // Auto-repeat of a swallowed Tab stays swallowed; a fresh press clears a stale flag.
+                if event.getIntegerValueField(.keyboardEventAutorepeat) != 0 { return nil }
+                tabHeld = false
+            }
+
             // ---- Alt-Tab switcher (⌥⇥ / ⌥⇧⇥) ----
             if switcher.isActive {
                 switch key {
                 case Key.tab:
+                    tabHeld = true
                     DispatchQueue.main.async { self.switcher.advance(backwards: mods.contains(.maskShift)) }
                     return nil
                 case Key.right, Key.down:
@@ -84,6 +97,7 @@ final class HotKeyMonitor {
             if Settings.switcherEnabled, key == Key.tab,
                mods == [.maskAlternate] || mods == [.maskAlternate, .maskShift] {
                 let back = mods.contains(.maskShift)
+                tabHeld = true
                 DispatchQueue.main.async { self.switcher.advance(backwards: back) }
                 return nil
             }
