@@ -3,8 +3,16 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-swift build -c release --arch arm64 --arch x86_64
-BIN=".build/apple/Products/Release/WindowPac"
+# Build each architecture separately (works with Command Line Tools only, no full Xcode),
+# then merge into one universal binary.
+for ARCH in arm64 x86_64; do
+  swift build -c release --triple "$ARCH-apple-macosx13.0" --scratch-path ".build/$ARCH"
+done
+mkdir -p build
+BIN="build/WindowPac-universal"
+lipo -create -output "$BIN" \
+  ".build/arm64/arm64-apple-macosx/release/WindowPac" \
+  ".build/x86_64/x86_64-apple-macosx/release/WindowPac"
 
 APP="build/WindowPac.app"
 rm -rf "$APP"
