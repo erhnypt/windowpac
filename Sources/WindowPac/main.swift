@@ -1,7 +1,7 @@
 import Cocoa
 import ApplicationServices
 
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let monitor = HotKeyMonitor()
     private var statusItem: NSStatusItem!
     private var pollTimer: Timer?
@@ -38,11 +38,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: Menu
 
     private func rebuildMenu() {
-        let m = NSMenu()
+        let m = statusItem.menu ?? NSMenu()
+        m.removeAllItems()
+        m.delegate = self
         let state = NSMenuItem(title: monitor.isRunning ? "Active" : "Waiting for permissions (Accessibility + Input Monitoring)…",
                                action: nil, keyEquivalent: "")
         state.isEnabled = false
         m.addItem(state)
+        let ax = AXIsProcessTrusted(), im = CGPreflightListenEventAccess()
+        for line in ["Accessibility: \(ax ? "✓" : "✗ missing")",
+                     "Input Monitoring: \(im ? "✓" : "✗ missing")",
+                     "Keyboard hook: \(monitor.isRunning ? "✓ running" : "✗ not running")"] {
+            let it = NSMenuItem(title: line, action: nil, keyEquivalent: ""); it.isEnabled = false
+            m.addItem(it)
+        }
         if !monitor.isRunning {
             m.addItem(withTitle: "Open Accessibility Settings", action: #selector(openAccessibility), keyEquivalent: "").target = self
             m.addItem(withTitle: "Open Input Monitoring Settings", action: #selector(openInputMonitoring), keyEquivalent: "").target = self
@@ -75,6 +84,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         m.addItem(.separator())
         m.addItem(withTitle: "Quit WindowPac", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         statusItem.menu = m
+    }
+
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        // Re-evaluate on every open so the status lines are current.
+        if !monitor.isRunning { tick() }
+        if menu.items.isEmpty { return }
+        rebuildMenu()
     }
 
     @objc private func toggleSnap() { Settings.snapEnabled.toggle(); rebuildMenu() }
