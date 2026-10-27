@@ -37,6 +37,7 @@ final class HotKeyMonitor {
         return true
     }
 
+    private func handle(_ type: CGEventType, _ event: CGEvent) -> Unmanaged<CGEvent>? {
         let pass = Unmanaged.passUnretained(event)
 
         switch type {
