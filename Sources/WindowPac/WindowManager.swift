@@ -88,11 +88,14 @@ enum WindowManager {
 
     // MARK: Actions
 
-    static func perform(_ action: SnapAction) {
-        guard let w = focusedWindow(), let cur = frame(of: w) else { NSSound.beep(); return }
+    @discardableResult
+    static func perform(_ action: SnapAction) -> String {
+        guard let app = NSWorkspace.shared.frontmostApplication else { return "no frontmost app" }
+        guard let w = focusedWindow() else { NSSound.beep(); return "no focused window in \(app.localizedName ?? "?") (AX)" }
+        guard let cur = frame(of: w) else { NSSound.beep(); return "cannot read window frame" }
         let id = windowID(w)
         let screens = orderedScreens
-        guard !screens.isEmpty else { return }
+        guard !screens.isEmpty else { return "no screens" }
         let idx = screenIndex(for: cur, in: screens)
         let area = usable(screens[idx])
         let halves = halfRects(area)
@@ -129,7 +132,7 @@ enum WindowManager {
             }
 
         case .moveDisplayLeft, .moveDisplayRight:
-            guard screens.count > 1 else { NSSound.beep(); return }
+            guard screens.count > 1 else { NSSound.beep(); return "only one display" }
             let step = action == .moveDisplayLeft ? -1 : 1
             let next = (idx + step + screens.count) % screens.count
             let src = area, dst = usable(screens[next])
@@ -144,5 +147,6 @@ enum WindowManager {
         case .exitFullScreen:
             AXUIElementSetAttributeValue(w, "AXFullScreen" as CFString, false as CFBoolean)
         }
+        return "ok → \(app.localizedName ?? "?"), \(Int(cur.width))x\(Int(cur.height)) → \(frame(of: w).map { "\(Int($0.minX)),\(Int($0.minY)) \(Int($0.width))x\(Int($0.height))" } ?? "?")"
     }
 }

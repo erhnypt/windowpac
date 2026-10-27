@@ -104,7 +104,6 @@ final class HotKeyMonitor {
                 guard mods == base || withShift else { return pass }
                 // ⌥/⇧+arrows are text navigation: leave them alone inside text inputs.
                 if focusIsTextInput() { lastResult = "ignored: text field focused"; return pass }
-                lastResult = "handled"
                 let action: SnapAction
                 switch (key, withShift) {
                 case (Key.left, false):  action = .left
@@ -116,7 +115,7 @@ final class HotKeyMonitor {
                 case (Key.up, true):     action = .enterFullScreen
                 default:                 action = .exitFullScreen
                 }
-                DispatchQueue.main.async { WindowManager.perform(action) }
+                DispatchQueue.main.async { self.lastResult = WindowManager.perform(action) }
                 return nil
             }
             return pass
