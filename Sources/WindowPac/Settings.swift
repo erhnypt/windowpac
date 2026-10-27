@@ -8,7 +8,6 @@ enum SnapModifier: String, CaseIterable {
     var flags: CGEventFlags {
         switch self {
         case .opt:     return [.maskAlternate]
-        case .opt:     return [.maskAlternate]
         case .ctrlOpt: return [.maskControl, .maskAlternate]
         case .ctrlCmd: return [.maskControl, .maskCommand]
         case .optCmd:  return [.maskAlternate, .maskCommand]
@@ -17,7 +16,6 @@ enum SnapModifier: String, CaseIterable {
 
     var title: String {
         switch self {
-        case .opt:     return "⌥ + Arrow"
         case .opt:     return "⌥ + Arrow"
         case .ctrlOpt: return "⌃⌥ + Arrow"
         case .ctrlCmd: return "⌃⌘ + Arrow"

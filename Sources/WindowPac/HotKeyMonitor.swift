@@ -43,17 +43,6 @@ final class HotKeyMonitor {
         AXUIElementCopyAttributeValue(el as! AXUIElement, kAXRoleAttribute as CFString, &role)
         return ["AXTextField", "AXTextArea", "AXComboBox", "AXSearchField"].contains(role as? String ?? "")
     }
-
-    private func focusIsTextInput() -> Bool {
-        let sys = AXUIElementCreateSystemWide()
-        var ref: CFTypeRef?
-        guard AXUIElementCopyAttributeValue(sys, kAXFocusedUIElementAttribute as CFString, &ref) == .success,
-              let el = ref, CFGetTypeID(el) == AXUIElementGetTypeID() else { return false }
-        var role: CFTypeRef?
-        AXUIElementCopyAttributeValue(el as! AXUIElement, kAXRoleAttribute as CFString, &role)
-        return ["AXTextField", "AXTextArea", "AXComboBox", "AXSearchField"].contains(role as? String ?? "")
-    }
-
     private func handle(_ type: CGEventType, _ event: CGEvent) -> Unmanaged<CGEvent>? {
         let pass = Unmanaged.passUnretained(event)
 
@@ -107,8 +96,6 @@ final class HotKeyMonitor {
                 let base = Settings.snapModifier.flags
                 let withShift = mods == base.union(.maskShift)
                 guard mods == base || withShift else { return pass }
-                // ⌥/⇧+arrows are text navigation: leave them alone inside text inputs.
-                if focusIsTextInput() { return pass }
                 // ⌥/⇧+arrows are text navigation: leave them alone inside text inputs.
                 if focusIsTextInput() { return pass }
                 let action: SnapAction
