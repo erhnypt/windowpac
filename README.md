@@ -24,6 +24,7 @@ cp -R build/WindowPac.app /Applications/
 open /Applications/WindowPac.app
 ```
 
+Shortcuts are registered as system hotkeys (no keyboard event tap, so ordinary typing/Tab is never touched).
 On first launch grant **Accessibility** (System Settings → Privacy & Security). After the
 permission is granted WindowPac registers itself as a login item, so it starts automatically
 from then on (toggle in the menu: "Launch at login").
