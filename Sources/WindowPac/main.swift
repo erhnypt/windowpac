@@ -14,12 +14,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // Ask for Accessibility once, then wait until it is granted.
         let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
         _ = AXIsProcessTrustedWithOptions(opts)
+        // Keyboard event taps also need "Input Monitoring" on modern macOS.
+        if !CGPreflightListenEventAccess() { _ = CGRequestListenEventAccess() }
         pollTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in self?.tick() }
         tick()
     }
 
     private func tick() {
-        guard AXIsProcessTrusted(), monitor.start() else { return }
+        guard AXIsProcessTrusted(), monitor.start() else {
+            if !AXIsProcessTrusted() { NSLog("WindowPac: waiting for Accessibility") }
+            else { NSLog("WindowPac: event tap failed (Input Monitoring missing?)") }
+            return
+        }
         pollTimer?.invalidate(); pollTimer = nil
         // First successful run after the permission was granted: start at login from now on.
         if !Settings.loginItemConfigured {
@@ -33,12 +39,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func rebuildMenu() {
         let m = NSMenu()
-        let state = NSMenuItem(title: monitor.isRunning ? "Active" : "Waiting for Accessibility permission…",
+        let state = NSMenuItem(title: monitor.isRunning ? "Active" : "Waiting for permissions (Accessibility + Input Monitoring)…",
                                action: nil, keyEquivalent: "")
         state.isEnabled = false
         m.addItem(state)
         if !monitor.isRunning {
             m.addItem(withTitle: "Open Accessibility Settings", action: #selector(openAccessibility), keyEquivalent: "").target = self
+            m.addItem(withTitle: "Open Input Monitoring Settings", action: #selector(openInputMonitoring), keyEquivalent: "").target = self
         }
         m.addItem(.separator())
 
@@ -76,6 +83,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func pickModifier(_ s: NSMenuItem) {
         if let raw = s.representedObject as? String, let m = SnapModifier(rawValue: raw) { Settings.snapModifier = m }
         rebuildMenu()
+    }
+    @objc private func openInputMonitoring() {
+        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ListenEvent")!)
     }
     @objc private func openAccessibility() {
         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
