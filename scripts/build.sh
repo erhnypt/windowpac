@@ -34,8 +34,13 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </dict></plist>
 PLIST
 
-# A stable signature keeps the Accessibility grant across rebuilds better than ad-hoc;
-# set SIGN_ID to a "Apple Development" identity if you have one.
-codesign --force --deep --sign "${SIGN_ID:--}" "$APP"
+# Use the stable local identity if present (run scripts/make-cert.sh once); otherwise ad-hoc,
+# in which case macOS forgets the Accessibility / Input Monitoring grants on every rebuild.
+SIGN_ID="${SIGN_ID:-}"
+if [ -z "$SIGN_ID" ]; then
+  if security find-identity -p codesigning | grep -q "WindowPac Local"; then SIGN_ID="WindowPac Local"
+  else SIGN_ID="-"; echo "warning: ad-hoc signing (run scripts/make-cert.sh once to keep permissions across rebuilds)"; fi
+fi
+codesign --force --deep --sign "$SIGN_ID" "$APP"
 lipo -archs "$APP/Contents/MacOS/WindowPac"
 echo "Built $APP  →  cp -R $APP /Applications/"

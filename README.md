@@ -33,5 +33,5 @@ from then on (toggle in the menu: "Launch at login").
 
 - Windows on *other Spaces* appear in the switcher with their app name (macOS only exposes
   titles with Screen Recording permission); selecting one switches to its Space.
-- Rebuilding with ad-hoc signing may make macOS ask for the Accessibility grant again;
-  set `SIGN_ID` to a developer identity to avoid that.
+- Run `./scripts/make-cert.sh` once before the first build: it creates a local signing identity so
+  macOS keeps the permission grants across rebuilds (ad-hoc signing loses them each time).
