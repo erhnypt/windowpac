@@ -1,6 +1,6 @@
 # WindowPac
 
-Windows-style window management for macOS (Apple Silicon + Intel, macOS 13+).
+Windows-style window management for macOS (Apple Silicon + Intel, macOS 14+).
 Menu-bar app, no Dock icon.
 
 ## Shortcuts

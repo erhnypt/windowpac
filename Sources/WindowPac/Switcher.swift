@@ -1,5 +1,6 @@
 import Cocoa
 import ApplicationServices
+import ScreenCaptureKit
 
 struct WinItem {
     let pid: pid_t
@@ -9,6 +10,7 @@ struct WinItem {
     let ax: AXUIElement?       // nil: window lives on another Space and AX can't see it
     let minimized: Bool
     var noWindow = false       // running app without any window
+    var windowID: CGWindowID?  // for thumbnails
 }
 
 /// Windows-style Alt-Tab: one entry per *window* (not per app), across all
@@ -19,6 +21,7 @@ final class Switcher {
     private var selected = 0
     private var panel: NSPanel?
     private var view: SwitcherView?
+    private var session = 0
 
     // MARK: Enumeration
 
@@ -50,7 +53,8 @@ final class Switcher {
                 let title = str(w, kAXTitleAttribute) ?? ""
                 let mini = (try? bool(w, kAXMinimizedAttribute)) ?? false
                 let item = WinItem(pid: app.processIdentifier, appName: app.localizedName ?? "?",
-                                   title: title, icon: app.icon, ax: w, minimized: mini)
+                                   title: title, icon: app.icon, ax: w, minimized: mini,
+                                   windowID: hasID ? id : nil)
                 ranked.append((hasID ? (order[id] ?? Int.max - 1) : Int.max - 1, item))
             }
         }
@@ -69,7 +73,7 @@ final class Switcher {
             pidsWithItems.insert(pid)
             ranked.append((order[n] ?? Int.max,
                            WinItem(pid: pid, appName: app.localizedName ?? "?", title: title,
-                                   icon: app.icon, ax: nil, minimized: false)))
+                                   icon: app.icon, ax: nil, minimized: false, windowID: n)))
         }
 
         if Settings.showWindowlessApps {
@@ -104,8 +108,10 @@ final class Switcher {
             items = Switcher.enumerate()
             guard items.count > 1 else { return }
             isActive = true
+            session += 1
             selected = backwards ? items.count - 1 : 1
             show()
+            loadThumbnails()
         } else {
             selected = (selected + (backwards ? -1 : 1) + items.count) % items.count
             view?.selected = selected
@@ -118,6 +124,7 @@ final class Switcher {
     private func finish(activate: Bool) {
         guard isActive else { return }
         isActive = false
+        session += 1
         panel?.orderOut(nil)
         panel = nil; view = nil
         if activate, items.indices.contains(selected) { Switcher.activate(items[selected]) }
@@ -142,6 +149,32 @@ final class Switcher {
         } else {
             // Other Space: activating the app makes macOS switch to its Space.
             app.activate(options: [.activateIgnoringOtherApps])
+        }
+    }
+
+    // MARK: Thumbnails (needs Screen Recording permission; icons are shown without it)
+
+    private func loadThumbnails() {
+        guard CGPreflightScreenCaptureAccess() else { _ = CGRequestScreenCaptureAccess(); return }
+        let mine = session
+        let wanted = items.enumerated().compactMap { i, it in it.windowID.map { (i, $0) } }
+        Task { @MainActor [weak self] in
+            guard let content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false)
+            else { return }
+            let byID = Dictionary(content.windows.map { ($0.windowID, $0) }, uniquingKeysWith: { a, _ in a })
+            for (i, wid) in wanted {
+                guard let self, self.isActive, self.session == mine else { return }
+                guard let w = byID[wid], w.frame.width > 1, w.frame.height > 1 else { continue }
+                let cfg = SCStreamConfiguration()
+                let scale = min(1, 400 / w.frame.width)
+                cfg.width = max(1, Int(w.frame.width * scale)); cfg.height = max(1, Int(w.frame.height * scale))
+                cfg.showsCursor = false
+                if let img = try? await SCScreenshotManager.captureImage(
+                    contentFilter: SCContentFilter(desktopIndependentWindow: w), configuration: cfg),
+                   self.isActive, self.session == mine {
+                    self.view?.setThumbnail(img, at: i)
+                }
+            }
         }
     }
 
@@ -175,37 +208,62 @@ final class Switcher {
 private final class SwitcherView: NSView {
     private let items: [WinItem]
     private let cols: Int
-    private let cellW: CGFloat = 150, cellH: CGFloat = 120, pad: CGFloat = 16
+    private let cellW: CGFloat = 200, cellH: CGFloat = 150, pad: CGFloat = 16
+    private var thumbs: [Int: NSImage] = [:]
     var selected = 0 { didSet { needsDisplay = true } }
     override var isFlipped: Bool { true }
 
     init(items: [WinItem]) {
         self.items = items
-        cols = min(items.count, 7)
+        cols = min(items.count, 6)
         let rows = (items.count + cols - 1) / cols
         super.init(frame: CGRect(x: 0, y: 0, width: CGFloat(cols) * cellW + pad * 2,
                                  height: CGFloat(rows) * cellH + pad * 2))
-        wantsLayer = true
     }
     required init?(coder: NSCoder) { fatalError() }
 
+    func setThumbnail(_ img: CGImage, at i: Int) {
+        thumbs[i] = NSImage(cgImage: img, size: NSSize(width: img.width, height: img.height))
+        needsDisplay = true
+    }
+
+    private func fit(_ size: CGSize, in box: CGRect) -> CGRect {
+        let k = min(box.width / size.width, box.height / size.height, 1.5)
+        let w = size.width * k, h = size.height * k
+        return CGRect(x: box.midX - w / 2, y: box.midY - h / 2, width: w, height: h)
+    }
+
     override func draw(_ dirtyRect: NSRect) {
-        let para = NSMutableParagraphStyle(); para.alignment = .center; para.lineBreakMode = .byTruncatingTail
+        let para = NSMutableParagraphStyle(); para.lineBreakMode = .byTruncatingTail
         for (i, it) in items.enumerated() {
             let r = CGRect(x: pad + CGFloat(i % cols) * cellW, y: pad + CGFloat(i / cols) * cellH,
                            width: cellW, height: cellH).insetBy(dx: 4, dy: 4)
             if i == selected {
-                NSColor.white.withAlphaComponent(0.22).setFill()
+                NSColor.white.withAlphaComponent(0.25).setFill()
                 NSBezierPath(roundedRect: r, xRadius: 10, yRadius: 10).fill()
             }
-            let icon = CGRect(x: r.midX - 28, y: r.minY + 8, width: 56, height: 56)
-            it.icon?.draw(in: icon, from: .zero, operation: .sourceOver,
-                          fraction: (it.minimized || it.noWindow) ? 0.45 : 1, respectFlipped: true, hints: nil)
+            let box = CGRect(x: r.minX + 8, y: r.minY + 8, width: r.width - 16, height: 92)
+            let dim: CGFloat = (it.minimized || it.noWindow) ? 0.5 : 1
+            if let t = thumbs[i] {
+                let tr = fit(t.size, in: box)
+                t.draw(in: tr, from: .zero, operation: .sourceOver, fraction: dim, respectFlipped: true, hints: nil)
+                NSColor.white.withAlphaComponent(0.3).setStroke()
+                NSBezierPath(rect: tr).stroke()
+            } else {
+                it.icon?.draw(in: CGRect(x: box.midX - 32, y: box.midY - 32, width: 64, height: 64),
+                              from: .zero, operation: .sourceOver, fraction: dim, respectFlipped: true, hints: nil)
+            }
+            let row = CGRect(x: r.minX + 8, y: r.minY + 106, width: r.width - 16, height: 18)
+            it.icon?.draw(in: CGRect(x: row.minX, y: row.minY, width: 16, height: 16),
+                          from: .zero, operation: .sourceOver, fraction: dim, respectFlipped: true, hints: nil)
             let name = it.title.isEmpty ? it.appName : it.title
-            let sub = it.noWindow ? "no window" : (it.title.isEmpty ? "" : it.appName + (it.minimized ? " · minimized" : ""))
-            NSAttributedString(string: name, attributes: [.font: NSFont.systemFont(ofSize: 12, weight: .medium), .foregroundColor: NSColor.labelColor, .paragraphStyle: para]).draw(in: CGRect(x: r.minX + 4, y: r.minY + 68, width: r.width - 8, height: 16))
-            let subText = sub.isEmpty && it.minimized ? "minimized" : sub
-            NSAttributedString(string: subText, attributes: [.font: NSFont.systemFont(ofSize: 10), .foregroundColor: NSColor.secondaryLabelColor, .paragraphStyle: para]).draw(in: CGRect(x: r.minX + 4, y: r.minY + 86, width: r.width - 8, height: 14))
+            NSAttributedString(string: name, attributes: [.font: NSFont.systemFont(ofSize: 12, weight: .medium),
+                .foregroundColor: NSColor.labelColor, .paragraphStyle: para])
+                .draw(in: CGRect(x: row.minX + 22, y: row.minY, width: row.width - 22, height: 16))
+            let sub = it.noWindow ? "no window" : (it.minimized ? "minimized" : (it.title.isEmpty ? "" : it.appName))
+            NSAttributedString(string: sub, attributes: [.font: NSFont.systemFont(ofSize: 10),
+                .foregroundColor: NSColor.secondaryLabelColor, .paragraphStyle: para])
+                .draw(in: CGRect(x: row.minX + 22, y: row.minY + 16, width: row.width - 22, height: 14))
         }
     }
 }

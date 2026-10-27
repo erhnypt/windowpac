@@ -26,6 +26,12 @@ enum WindowManager {
         return (ref as! AXUIElement)
     }
 
+    static func isFullScreen(_ w: AXUIElement) -> Bool {
+        var ref: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(w, "AXFullScreen" as CFString, &ref) == .success else { return false }
+        return (ref as? Bool) ?? false
+    }
+
     static func windowID(_ w: AXUIElement) -> CGWindowID? {
         var id: CGWindowID = 0
         return _AXUIElementGetWindow(w, &id) == .success ? id : nil
@@ -89,9 +95,24 @@ enum WindowManager {
     // MARK: Actions
 
     @discardableResult
-    static func perform(_ action: SnapAction) -> String {
+    static func perform(_ action: SnapAction, retried: Bool = false) -> String {
         guard let app = NSWorkspace.shared.frontmostApplication else { return "no frontmost app" }
         guard let w = focusedWindow() else { NSSound.beep(); return "no focused window in \(app.localizedName ?? "?") (AX)" }
+
+        // Native full-screen windows ignore resizing: leave full screen first, then redo the action.
+        if isFullScreen(w) {
+            switch action {
+            case .enterFullScreen: return "already full screen"
+            case .exitFullScreen, .restoreOrMinimize:
+                AXUIElementSetAttributeValue(w, "AXFullScreen" as CFString, false as CFBoolean)
+                return "left full screen"
+            default:
+                guard !retried else { return "could not leave full screen" }
+                AXUIElementSetAttributeValue(w, "AXFullScreen" as CFString, false as CFBoolean)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { _ = perform(action, retried: true) }
+                return "left full screen, applying \(action)…"
+            }
+        }
         guard let cur = frame(of: w) else { NSSound.beep(); return "cannot read window frame" }
         let id = windowID(w)
         let screens = orderedScreens

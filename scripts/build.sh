@@ -6,7 +6,7 @@ cd "$(dirname "$0")/.."
 # Build each architecture separately (works with Command Line Tools only, no full Xcode),
 # then merge into one universal binary.
 for ARCH in arm64 x86_64; do
-  swift build -c release --triple "$ARCH-apple-macosx13.0" --scratch-path ".build/$ARCH"
+  swift build -c release --triple "$ARCH-apple-macosx14.0" --scratch-path ".build/$ARCH"
 done
 mkdir -p build
 BIN="build/WindowPac-universal"
@@ -29,7 +29,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>1.0</string>
   <key>CFBundleVersion</key><string>1</string>
-  <key>LSMinimumSystemVersion</key><string>13.0</string>
+  <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSUIElement</key><true/>
 </dict></plist>
 PLIST
