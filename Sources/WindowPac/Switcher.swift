@@ -137,7 +137,12 @@ final class Switcher {
         p.backgroundColor = .clear
         p.hasShadow = true
         p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
-        p.contentView = v
+        // Frosted background is the container; the item view draws on top of it.
+        let fx = NSVisualEffectView(frame: CGRect(origin: .zero, size: v.frame.size))
+        fx.material = .hudWindow; fx.state = .active; fx.blendingMode = .behindWindow
+        fx.wantsLayer = true; fx.layer?.cornerRadius = 16; fx.layer?.masksToBounds = true
+        fx.addSubview(v)
+        p.contentView = fx
         let screen = NSScreen.screens.first { NSMouseInRect(NSEvent.mouseLocation, $0.frame, false) } ?? NSScreen.main
         if let f = screen?.visibleFrame {
             p.setFrameOrigin(CGPoint(x: f.midX - v.frame.width / 2, y: f.midY - v.frame.height / 2))
@@ -160,11 +165,7 @@ private final class SwitcherView: NSView {
         let rows = (items.count + cols - 1) / cols
         super.init(frame: CGRect(x: 0, y: 0, width: CGFloat(cols) * cellW + pad * 2,
                                  height: CGFloat(rows) * cellH + pad * 2))
-        let fx = NSVisualEffectView(frame: bounds)
-        fx.material = .hudWindow; fx.state = .active; fx.blendingMode = .behindWindow
-        fx.wantsLayer = true; fx.layer?.cornerRadius = 16; fx.layer?.masksToBounds = true
-        fx.autoresizingMask = [.width, .height]
-        addSubview(fx, positioned: .below, relativeTo: nil)
+        wantsLayer = true
     }
     required init?(coder: NSCoder) { fatalError() }
 
