@@ -5,8 +5,8 @@ Menu-bar app, no Dock icon.
 
 ## Shortcuts
 
-Default modifier is **⌃⌥** (changeable from the menu: ⌃⌥, ⌃⌘, ⌥⌘).
-Plain ⇧+Arrow is deliberately not used: every text field uses it for selection.
+Default modifier is **⌥** (the Windows-key equivalent; changeable from the menu: ⌥, ⌃⌥, ⌃⌘, ⌥⌘).
+When keyboard focus is in a text field the arrows pass through untouched, so ⌥+← word-jumping still works there.
 
 | Keys | Action |
 |---|---|
