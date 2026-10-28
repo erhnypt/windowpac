@@ -16,6 +16,12 @@ Default modifier is **⌘⌥** (changeable from the menu: ⌘⌥, ⌃⌥, ⌃⌘
 | ⌘⌥ + ⇧ + ↑ / ↓ | Enter / exit native full screen |
 | ⌥⇥ / ⌥⇧⇥ | Alt-Tab over **every window** on all displays and Spaces, including minimized ones. Release ⌥ to switch, Esc to cancel |
 
+## Battery widget
+
+A small panel on the desktop (below windows, draggable, position remembered) shows the Mac's charge and
+the charge of connected Bluetooth devices (mouse, keyboard, AirPods incl. L/R/case). Toggle in the menu.
+It is **not** shown on the lock screen: macOS does not let third-party apps draw there.
+
 ## Build & install (on a Mac)
 
 ```sh

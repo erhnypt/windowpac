@@ -3,6 +3,7 @@ import ApplicationServices
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let monitor = HotKeyController()
+    private let battery = BatteryWidget()
     private var statusItem: NSStatusItem!
     private var pollTimer: Timer?
 
@@ -15,6 +16,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
         _ = AXIsProcessTrustedWithOptions(opts)
         monitor.reload()
+        battery.apply()
         pollTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in self?.tick() }
         tick()
     }
@@ -74,6 +76,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         wl.state = Settings.showWindowlessApps ? .on : .off; wl.target = self
         m.addItem(wl)
 
+        let bw = NSMenuItem(title: "Desktop battery widget", action: #selector(toggleBattery), keyEquivalent: "")
+        bw.state = Settings.batteryWidgetEnabled ? .on : .off; bw.target = self
+        m.addItem(bw)
+
         m.addItem(.separator())
         let login = NSMenuItem(title: "Launch at login", action: #selector(toggleLogin), keyEquivalent: "")
         login.state = LoginItem.isEnabled ? .on : .off; login.target = self
@@ -93,6 +99,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func toggleSnap() { Settings.snapEnabled.toggle(); monitor.reload(); rebuildMenu() }
     @objc private func toggleSwitcher() { Settings.switcherEnabled.toggle(); monitor.reload(); rebuildMenu() }
     @objc private func toggleWindowless() { Settings.showWindowlessApps.toggle(); rebuildMenu() }
+    @objc private func toggleBattery() { Settings.batteryWidgetEnabled.toggle(); battery.apply(); rebuildMenu() }
     @objc private func toggleLogin() { LoginItem.set(!LoginItem.isEnabled); rebuildMenu() }
     @objc private func pickModifier(_ s: NSMenuItem) {
         if let raw = s.representedObject as? String, let m = SnapModifier(rawValue: raw) { Settings.snapModifier = m; monitor.reload() }

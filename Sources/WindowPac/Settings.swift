@@ -42,6 +42,10 @@ enum Settings {
         get { d.bool(forKey: "showWindowlessApps") }
         set { d.set(newValue, forKey: "showWindowlessApps") }
     }
+    static var batteryWidgetEnabled: Bool {
+        get { d.object(forKey: "batteryWidgetEnabled") as? Bool ?? true }
+        set { d.set(newValue, forKey: "batteryWidgetEnabled") }
+    }
     /// True once we auto-registered the login item (so a user opt-out sticks).
     static var loginItemConfigured: Bool {
         get { d.bool(forKey: "loginItemConfigured") }
