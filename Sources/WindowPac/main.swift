@@ -2,8 +2,10 @@ import Cocoa
 import ApplicationServices
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
-    private let monitor = HotKeyController()
+    private let clipboardPanel = ClipboardPanel()
+    private lazy var monitor = HotKeyController(clipboard: clipboardPanel)
     private let battery = BatteryWidget()
+    private let settingsWindow = SettingsWindowController()
     private var statusItem: NSStatusItem!
     private var pollTimer: Timer?
 
@@ -15,10 +17,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // Ask for Accessibility once, then wait until it is granted.
         let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
         _ = AXIsProcessTrustedWithOptions(opts)
-        monitor.reload()
-        battery.apply()
+        applySettings()
+        let nc = NotificationCenter.default
+        nc.addObserver(forName: .windowPacSettingsChanged, object: nil, queue: .main) { [weak self] _ in self?.applySettings() }
+        nc.addObserver(forName: .windowPacRecording, object: nil, queue: .main) { [weak self] n in
+            // Release the global hotkeys while a new combination is being recorded.
+            if (n.userInfo?["on"] as? Bool) == true { self?.monitor.suspend() }
+        }
         pollTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in self?.tick() }
         tick()
+    }
+
+    private func applySettings() {
+        monitor.reload()
+        battery.apply()
+        ClipboardStore.shared.apply()
+        rebuildMenu()
     }
 
     private func tick() {
@@ -57,18 +71,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         snap.state = Settings.snapEnabled ? .on : .off; snap.target = self
         m.addItem(snap)
 
-        let sub = NSMenu()
-        for mod in SnapModifier.allCases {
-            let it = NSMenuItem(title: mod.title, action: #selector(pickModifier(_:)), keyEquivalent: "")
-            it.representedObject = mod.rawValue; it.target = self
-            it.state = Settings.snapModifier == mod ? .on : .off
-            sub.addItem(it)
-        }
-        let subItem = NSMenuItem(title: "Snap shortcut", action: nil, keyEquivalent: "")
-        subItem.submenu = sub
-        m.addItem(subItem)
-
-        let sw = NSMenuItem(title: "Alt-Tab window switcher (⌥⇥)", action: #selector(toggleSwitcher), keyEquivalent: "")
+        let sw = NSMenuItem(title: "Alt-Tab window switcher (\(ShortcutStore.get(.switcherNext).display))",
+                            action: #selector(toggleSwitcher), keyEquivalent: "")
         sw.state = Settings.switcherEnabled ? .on : .off; sw.target = self
         m.addItem(sw)
 
@@ -80,7 +84,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         bw.state = Settings.batteryWidgetEnabled ? .on : .off; bw.target = self
         m.addItem(bw)
 
+        let cb = NSMenuItem(title: "Clipboard history (\(ShortcutStore.get(.clipboard).display))",
+                            action: #selector(toggleClipboard), keyEquivalent: "")
+        cb.state = Settings.clipboardEnabled ? .on : .off; cb.target = self
+        m.addItem(cb)
+        let show = NSMenuItem(title: "Show clipboard history…", action: #selector(showClipboard), keyEquivalent: "")
+        show.target = self
+        m.addItem(show)
+
         m.addItem(.separator())
+        let st = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
+        st.target = self
+        m.addItem(st)
+        m.addItem(.separator())
+
         let login = NSMenuItem(title: "Launch at login", action: #selector(toggleLogin), keyEquivalent: "")
         login.state = LoginItem.isEnabled ? .on : .off; login.target = self
         m.addItem(login)
@@ -96,15 +113,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         rebuildMenu()
     }
 
-    @objc private func toggleSnap() { Settings.snapEnabled.toggle(); monitor.reload(); rebuildMenu() }
-    @objc private func toggleSwitcher() { Settings.switcherEnabled.toggle(); monitor.reload(); rebuildMenu() }
+    @objc private func toggleSnap() { Settings.snapEnabled.toggle(); applySettings() }
+    @objc private func toggleSwitcher() { Settings.switcherEnabled.toggle(); applySettings() }
     @objc private func toggleWindowless() { Settings.showWindowlessApps.toggle(); rebuildMenu() }
-    @objc private func toggleBattery() { Settings.batteryWidgetEnabled.toggle(); battery.apply(); rebuildMenu() }
+    @objc private func toggleBattery() { Settings.batteryWidgetEnabled.toggle(); applySettings() }
+    @objc private func toggleClipboard() { Settings.clipboardEnabled.toggle(); applySettings() }
+    @objc private func showClipboard() { clipboardPanel.toggle() }
+    @objc private func openSettings() { settingsWindow.show() }
     @objc private func toggleLogin() { LoginItem.set(!LoginItem.isEnabled); rebuildMenu() }
-    @objc private func pickModifier(_ s: NSMenuItem) {
-        if let raw = s.representedObject as? String, let m = SnapModifier(rawValue: raw) { Settings.snapModifier = m; monitor.reload() }
-        rebuildMenu()
-    }
     @objc private func openAccessibility() {
         NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
     }

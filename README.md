@@ -5,16 +5,25 @@ Menu-bar app, no Dock icon.
 
 ## Shortcuts
 
-Default modifier is **⌘⌥** (changeable from the menu: ⌘⌥, ⌃⌥, ⌃⌘). Plain ⌥+Arrow is not used because it is word-jumping in text fields.
+Every shortcut can be changed in **menu bar icon → Settings… → Shortcuts** (click the button, press the new keys;
+needs ⌘, ⌥ or ⌃; ⎋ cancels; ↺ resets). Defaults:
 
 | Keys | Action |
 |---|---|
 | ⌘⌥ + ← / → | Snap to left / right half. Press again on a snapped window → continues to the next display |
 | ⌘⌥ + ↑ | Fill the screen (maximize) |
 | ⌘⌥ + ↓ | Restore previous size, otherwise minimize |
-| ⌘⌥ + ⇧ + ← / → | Move window to the previous / next display (keeps relative size) |
-| ⌘⌥ + ⇧ + ↑ / ↓ | Enter / exit native full screen |
-| ⌥⇥ / ⌥⇧⇥ | Alt-Tab over **every window** on all displays and Spaces, including minimized ones. Release ⌥ to switch, Esc to cancel |
+| ⌘⌥⇧ + ← / → | Move window to the previous / next display (keeps relative size) |
+| ⌘⌥⇧ + ↑ / ↓ | Enter / exit native full screen (⌘⌥ + arrows also leave full screen first) |
+| ⌥⇥ / ⌥⇧⇥ | Alt-Tab over **every window** on all displays and Spaces, including minimized ones, with live thumbnails (Screen Recording permission). Release ⌥ to switch, Esc to cancel |
+| ⌃⌘V | Clipboard history: search, ↑↓ to select, ↩ or click to paste into the app you were in |
+
+## Clipboard history
+
+Copied text is recorded (up to 50 items by default, 10–200 in Settings), newest first, duplicates collapsed.
+Items marked concealed/transient by password managers are never stored. By default the history is kept
+on disk across restarts in `~/Library/Application Support/WindowPac/clipboard.json` (owner-only);
+turn that off in Settings → Features to keep it in memory only.
 
 ## Battery widget
 

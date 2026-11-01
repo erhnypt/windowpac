@@ -40,67 +40,73 @@ final class HotKeyCenter {
     }
 }
 
-/// Registers the snapping shortcuts and the Alt-Tab switcher shortcuts.
+/// Registers every configured shortcut and drives the Alt-Tab session.
 final class HotKeyController {
     private let center = HotKeyCenter.shared
     private let switcher = Switcher()
+    private let clipboard: ClipboardPanel
     private var fixedIDs: [UInt32] = []
     private var sessionIDs: [UInt32] = []
     private var timer: Timer?
+    private var hold: NSEvent.ModifierFlags = []
     private(set) var failed: [String] = []
     private(set) var lastResult = ""
 
     var isRunning: Bool { !fixedIDs.isEmpty }
 
-    private enum K { static let tab = 48, esc = 53, left = 123, right = 124, down = 125, up = 126 }
-    private let opt = UInt32(optionKey), shift = UInt32(shiftKey)
+    private enum K { static let esc = 53, left = 123, right = 124, down = 125, up = 126 }
 
-    private func carbon(_ f: CGEventFlags) -> UInt32 {
-        var m: UInt32 = 0
-        if f.contains(.maskCommand) { m |= UInt32(cmdKey) }
-        if f.contains(.maskAlternate) { m |= UInt32(optionKey) }
-        if f.contains(.maskControl) { m |= UInt32(controlKey) }
-        return m
+    init(clipboard: ClipboardPanel) { self.clipboard = clipboard }
+
+    /// Releases all global hotkeys (used while a new shortcut is being recorded).
+    func suspend() {
+        endSession(commit: false)
+        fixedIDs.forEach(center.unregister); fixedIDs = []
     }
 
     /// (Re)registers everything according to the current settings.
     func reload() {
-        endSession(commit: false)
-        fixedIDs.forEach(center.unregister); fixedIDs = []
+        suspend()
         failed = []
-
-        func add(_ name: String, _ key: Int, _ mods: UInt32, _ h: @escaping () -> Void) {
-            if let id = center.register(key: key, mods: mods, handler: h) { fixedIDs.append(id) }
-            else { failed.append(name) }
-        }
-
-        if Settings.snapEnabled {
-            let base = carbon(Settings.snapModifier.flags)
-            let table: [(String, Int, SnapAction, SnapAction)] = [
-                ("←", K.left, .left, .moveDisplayLeft), ("→", K.right, .right, .moveDisplayRight),
-                ("↑", K.up, .maximize, .enterFullScreen), ("↓", K.down, .restoreOrMinimize, .exitFullScreen)]
-            for (n, key, plain, shifted) in table {
-                add("snap \(n)", key, base) { [unowned self] in self.lastResult = WindowManager.perform(plain) }
-                add("snap ⇧\(n)", key, base | shift) { [unowned self] in self.lastResult = WindowManager.perform(shifted) }
+        for action in ShortcutAction.allCases where action.isEnabled {
+            let sc = ShortcutStore.get(action)
+            if let id = center.register(key: sc.keyCode, mods: sc.mods, handler: { [unowned self] in self.run(action, sc) }) {
+                fixedIDs.append(id)
+            } else {
+                failed.append("\(action.title) (\(sc.display))")
             }
         }
-        if Settings.switcherEnabled {
-            add("⌥⇥", K.tab, opt) { [unowned self] in self.advance(backwards: false) }
-            add("⌥⇧⇥", K.tab, opt | shift) { [unowned self] in self.advance(backwards: true) }
+    }
+
+    private func run(_ action: ShortcutAction, _ sc: Shortcut) {
+        func snap(_ a: SnapAction) { lastResult = WindowManager.perform(a) }
+        switch action {
+        case .snapLeft: snap(.left)
+        case .snapRight: snap(.right)
+        case .maximize: snap(.maximize)
+        case .restore: snap(.restoreOrMinimize)
+        case .moveDisplayLeft: snap(.moveDisplayLeft)
+        case .moveDisplayRight: snap(.moveDisplayRight)
+        case .enterFullScreen: snap(.enterFullScreen)
+        case .exitFullScreen: snap(.exitFullScreen)
+        case .switcherNext: advance(backwards: false, sc)
+        case .switcherPrevious: advance(backwards: true, sc)
+        case .clipboard: clipboard.toggle()
         }
     }
 
     // MARK: Alt-Tab session
 
-    private func advance(backwards: Bool) {
+    private func advance(backwards: Bool, _ sc: Shortcut) {
         switcher.advance(backwards: backwards)
-        if switcher.isActive, timer == nil { beginSession() }
+        if switcher.isActive, timer == nil { beginSession(sc) }
     }
 
-    private func beginSession() {
-        // While ⌥ is held the arrows / Esc steer the switcher.
+    private func beginSession(_ sc: Shortcut) {
+        hold = sc.holdFlags
+        // While the modifier is held the arrows / Esc steer the switcher.
         func add(_ key: Int, _ h: @escaping () -> Void) {
-            if let id = center.register(key: key, mods: opt, handler: h) { sessionIDs.append(id) }
+            if let id = center.register(key: key, mods: sc.holdCarbon, handler: h) { sessionIDs.append(id) }
         }
         add(K.right) { [unowned self] in self.switcher.advance(backwards: false) }
         add(K.down)  { [unowned self] in self.switcher.advance(backwards: false) }
@@ -108,9 +114,10 @@ final class HotKeyController {
         add(K.up)    { [unowned self] in self.switcher.advance(backwards: true) }
         add(K.esc)   { [unowned self] in self.endSession(commit: false) }
 
-        // Releasing ⌥ commits. Polled: reading the modifier state needs no permission.
+        // Releasing the modifier commits. Polled: reading the modifier state needs no permission.
         timer = Timer.scheduledTimer(withTimeInterval: 0.02, repeats: true) { [unowned self] _ in
-            if !NSEvent.modifierFlags.contains(.option) { self.endSession(commit: true) }
+            let now = NSEvent.modifierFlags.intersection(.deviceIndependentFlagsMask)
+            if !now.isSuperset(of: self.hold) { self.endSession(commit: true) }
         }
         RunLoop.main.add(timer!, forMode: .common)
     }

@@ -1,34 +1,8 @@
 import Cocoa
 
-/// Modifier combination used for window snapping (default ⌘⌥).
-/// Adding ⇧ on top of it triggers the "move to other display / full screen" variants.
-enum SnapModifier: String, CaseIterable {
-    case optCmd, ctrlOpt, ctrlCmd
-
-    var flags: CGEventFlags {
-        switch self {
-        case .optCmd:  return [.maskAlternate, .maskCommand]
-        case .ctrlOpt: return [.maskControl, .maskAlternate]
-        case .ctrlCmd: return [.maskControl, .maskCommand]
-        }
-    }
-
-    var title: String {
-        switch self {
-        case .optCmd:  return "⌘⌥ + Arrow"
-        case .ctrlOpt: return "⌃⌥ + Arrow"
-        case .ctrlCmd: return "⌃⌘ + Arrow"
-        }
-    }
-}
-
 enum Settings {
     private static let d = UserDefaults.standard
 
-    static var snapModifier: SnapModifier {
-        get { SnapModifier(rawValue: d.string(forKey: "snapModifierV2") ?? "") ?? .optCmd }
-        set { d.set(newValue.rawValue, forKey: "snapModifierV2") }
-    }
     static var snapEnabled: Bool {
         get { d.object(forKey: "snapEnabled") as? Bool ?? true }
         set { d.set(newValue, forKey: "snapEnabled") }
@@ -45,6 +19,19 @@ enum Settings {
     static var batteryWidgetEnabled: Bool {
         get { d.object(forKey: "batteryWidgetEnabled") as? Bool ?? true }
         set { d.set(newValue, forKey: "batteryWidgetEnabled") }
+    }
+    static var clipboardEnabled: Bool {
+        get { d.object(forKey: "clipboardEnabled") as? Bool ?? true }
+        set { d.set(newValue, forKey: "clipboardEnabled") }
+    }
+    /// Keep the clipboard history on disk (~/Library/Application Support/WindowPac, owner-only) across restarts.
+    static var clipboardPersist: Bool {
+        get { d.object(forKey: "clipboardPersist") as? Bool ?? true }
+        set { d.set(newValue, forKey: "clipboardPersist") }
+    }
+    static var clipboardMax: Int {
+        get { min(max(d.object(forKey: "clipboardMax") as? Int ?? 50, 10), 200) }
+        set { d.set(newValue, forKey: "clipboardMax") }
     }
     /// True once we auto-registered the login item (so a user opt-out sticks).
     static var loginItemConfigured: Bool {
