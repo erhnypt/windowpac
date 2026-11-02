@@ -45,7 +45,6 @@ final class HotKeyController {
     private let center = HotKeyCenter.shared
     private let switcher = Switcher()
     private let clipboard: ClipboardPanel
-    private let menuBar: MenuBarManager
     private var fixedIDs: [UInt32] = []
     private var sessionIDs: [UInt32] = []
     private var timer: Timer?
@@ -57,7 +56,7 @@ final class HotKeyController {
 
     private enum K { static let esc = 53, left = 123, right = 124, down = 125, up = 126 }
 
-    init(clipboard: ClipboardPanel, menuBar: MenuBarManager) { self.clipboard = clipboard; self.menuBar = menuBar }
+    init(clipboard: ClipboardPanel) { self.clipboard = clipboard }
 
     /// Releases all global hotkeys (used while a new shortcut is being recorded).
     func suspend() {
@@ -93,7 +92,6 @@ final class HotKeyController {
         case .switcherNext: advance(backwards: false, sc)
         case .switcherPrevious: advance(backwards: true, sc)
         case .clipboard: clipboard.toggle()
-        case .menuBarToggle: menuBar.toggle()
         }
     }
 

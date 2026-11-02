@@ -58,17 +58,15 @@ enum ShortcutAction: String, CaseIterable, Identifiable {
     case snapLeft, snapRight, maximize, restore, moveDisplayLeft, moveDisplayRight, enterFullScreen, exitFullScreen
     case switcherNext, switcherPrevious
     case clipboard
-    case menuBarToggle
 
     var id: String { rawValue }
 
-    enum Group: String, CaseIterable { case windows = "Window snapping", switcher = "Alt-Tab switcher", clipboard = "Clipboard history", menuBar = "Menu bar" }
+    enum Group: String, CaseIterable { case windows = "Window snapping", switcher = "Alt-Tab switcher", clipboard = "Clipboard history" }
 
     var group: Group {
         switch self {
         case .switcherNext, .switcherPrevious: return .switcher
         case .clipboard: return .clipboard
-        case .menuBarToggle: return .menuBar
         default: return .windows
         }
     }
@@ -86,7 +84,6 @@ enum ShortcutAction: String, CaseIterable, Identifiable {
         case .switcherNext: return "Next window (hold modifier, release to switch)"
         case .switcherPrevious: return "Previous window"
         case .clipboard: return "Show clipboard history"
-        case .menuBarToggle: return "Hide / show menu bar icons"
         }
     }
 
@@ -95,7 +92,6 @@ enum ShortcutAction: String, CaseIterable, Identifiable {
         case .windows: return Settings.snapEnabled
         case .switcher: return Settings.switcherEnabled
         case .clipboard: return Settings.clipboardEnabled
-        case .menuBar: return Settings.menuBarEnabled
         }
     }
 
@@ -113,7 +109,6 @@ enum ShortcutAction: String, CaseIterable, Identifiable {
         case .switcherNext: return Shortcut(keyCode: 48, mods: UInt32(optionKey), label: "⇥")
         case .switcherPrevious: return Shortcut(keyCode: 48, mods: UInt32(optionKey) | sh, label: "⇥")
         case .clipboard: return Shortcut(keyCode: 9, mods: UInt32(controlKey | cmdKey), label: "V")
-        case .menuBarToggle: return Shortcut(keyCode: 11, mods: UInt32(controlKey | cmdKey), label: "B")
         }
     }
 }

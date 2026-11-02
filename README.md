@@ -29,14 +29,6 @@ turn that off in Settings → Features to keep it in memory only.
 counted against the item limit, survive "Clear unpinned" and are always saved to disk, even when
 "keep after restart" is off. Unpin an entry first to delete it.
 
-## Menu bar icons
-
-A **‹ ›** button and a `|` separator sit next to the WindowPac icon. Click ›, hold **⌘** and drag other apps' icons
-to the **left** of the `|` separator; click ‹ and everything left of the separator disappears. Click again (or
-⌃⌘B) to show it. Extra `|` dividers (Settings → Features → Menu bar, 0–3) split the always-visible area into
-blocks that you arrange by ⌘-dragging as well. Optional auto-hide timer. Expand the bar before ⌘-dragging.
-If a hidden icon is needed, ⌃⌘B or the WindowPac menu shows it again.
-
 ## Battery widget
 
 A small panel on the desktop (below windows, draggable, position remembered) shows the Mac's charge and
