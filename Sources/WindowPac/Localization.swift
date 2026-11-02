@@ -99,10 +99,10 @@ enum L {
         "Add app…": "Uygulama ekle…",
         "Reset list": "Listeyi sıfırla",
         "Hidden menu bar items (⌄ button)": "Gizli menü çubuğu öğeleri (⌄ düğmesi)",
-        "Turn on “Hide” for an app: its menu bar icon is covered with the menu bar background and moves into the card that drops down from the ⌄ button. Click it there to open its menu. Needs the Screen Recording permission to match the background; the gap where the icon was stays.":
-            "Bir uygulama için “Gizle”yi aç: menü çubuğu ikonu, menü çubuğu arka planıyla örtülür ve ⌄ düğmesinden aşağı açılan karta taşınır. Menüsünü açmak için kartta ona tıkla. Arka planın eşleşmesi için Ekran Kaydı izni gerekir; ikonun yeri boş kalır.",
-        "Apps with a menu bar icon": "Menü çubuğunda ikonu olan uygulamalar",
-        "No other apps have a menu bar icon right now.": "Şu an menü çubuğunda ikonu olan başka uygulama yok.",
+        "Turn on “Hide” for an icon: it is covered with the menu bar background and moves into the card that drops down from the ⌄ button. Click it there to open its menu. Needs the Screen Recording permission to show the icons and to match the background; the gap where the icon was stays.":
+            "Bir ikon için “Gizle”yi aç: ikon menü çubuğu arka planıyla örtülür ve ⌄ düğmesinden aşağı açılan karta taşınır. Menüsünü açmak için kartta ona tıkla. İkonları göstermek ve arka planı eşleştirmek için Ekran Kaydı izni gerekir; ikonun yeri boş kalır.",
+        "Menu bar icons": "Menü çubuğu ikonları",
+        "No other menu bar icons right now.": "Şu an başka menü çubuğu ikonu yok.",
         "not running": "çalışmıyor",
         "Hide": "Gizle",
         "Apple's own items (Wi-Fi, battery, clock…) can't be hidden here; manage them in System Settings → Control Center.":
@@ -122,9 +122,9 @@ enum L {
 
         // Hidden menu bar card
         "Hidden menu bar items": "Gizli menü çubuğu öğeleri",
-        "Nothing hidden yet. Choose which apps to hide in Settings → Menu bar.":
-            "Henüz gizlenen yok. Gizlenecek uygulamaları Ayarlar → Menü çubuğu'ndan seç.",
-        "Choose apps…": "Uygulama seç…",
+        "Nothing hidden yet. Choose which icons to hide in Settings → Menu bar.":
+            "Henüz gizlenen yok. Gizlenecek ikonları Ayarlar → Menü çubuğu'ndan seç.",
+        "Choose icons…": "İkon seç…",
 
         // Battery widget
         "No battery information": "Pil bilgisi yok",

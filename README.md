@@ -45,10 +45,11 @@ modifier as the Alt-Tab shortcut). Hovering selects an entry and clicking switch
 
 ## Hidden menu bar items
 
-Choose in **Settings → Menu bar** which apps' menu bar icons to hide. Their icons are covered with a capture of the
+Choose in **Settings → Menu bar** which menu bar **icons** to hide (each icon is listed as it looks in the bar; an app
+with several icons gets one entry per icon). The chosen icons are covered with a capture of the
 real menu bar background (all icons excluded, so it needs the Screen Recording permission; without it a plain dark
 patch is used) and move into a Control Center–style card that drops down from WindowPac's **⌄** button (or ⌃⌘B).
-Click an app in the card to open its menu: WindowPac presses the real status item through Accessibility (falling
+Click an icon in the card to open its menu: WindowPac presses the real status item through Accessibility (falling
 back to a brief real click). The gap where an icon was stays, macOS offers no way to close it. Apple's own items
 (Wi-Fi, battery, clock) can't be hidden this way. Hidden Bar's "huge status item pushes icons away" trick no longer
 works on current macOS.

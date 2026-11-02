@@ -8,6 +8,11 @@ struct StatusWindow {
     let pid: pid_t
     let owner: String
     let bounds: CGRect        // CG coordinates (origin top-left of the primary display)
+    let bundleID: String?
+    /// Position among this app's icons, left → right (an app can own several).
+    let ordinal: Int
+    /// Stable identity of the icon for the "hidden" setting: "<bundle id>#<ordinal>".
+    var key: String { "\(bundleID ?? owner)#\(ordinal)" }
 }
 
 enum StatusBar {
@@ -28,9 +33,45 @@ enum StatusBar {
                   let b = d[kCGWindowBounds as String] as? [String: CGFloat],
                   let x = b["X"], let y = b["Y"], let w = b["Width"], let h = b["Height"],
                   h <= 60, y <= 40, w >= 8 else { continue }
-            out.append(StatusWindow(id: id, pid: pid, owner: owner, bounds: CGRect(x: x, y: y, width: w, height: h)))
+            out.append(StatusWindow(id: id, pid: pid, owner: owner, bounds: CGRect(x: x, y: y, width: w, height: h),
+                                    bundleID: bundleID(of: pid), ordinal: 0))
         }
-        return out.sorted { $0.bounds.minX < $1.bounds.minX }
+        out.sort { $0.bounds.minX < $1.bounds.minX }
+        var counts: [pid_t: Int] = [:]
+        return out.map { w in
+            let n = counts[w.pid, default: 0]
+            counts[w.pid] = n + 1
+            return StatusWindow(id: w.id, pid: w.pid, owner: w.owner, bounds: w.bounds, bundleID: w.bundleID, ordinal: n)
+        }
+    }
+
+    /// Whether the icon is hidden. Entries without "#" come from the old per-app setting and hide all of an app's icons.
+    static func isHidden(_ w: StatusWindow, in list: [String]) -> Bool {
+        list.contains(w.key) || (w.bundleID.map { list.contains($0) } ?? false)
+    }
+
+    /// How the icons look right now (with their real background). Needs Screen Recording permission.
+    static func images(for wins: [StatusWindow]) async -> [CGWindowID: NSImage] {
+        guard !wins.isEmpty, CGPreflightScreenCaptureAccess(),
+              let content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+        else { return [:] }
+        let me = ProcessInfo.processInfo.processIdentifier
+        let excluded = content.windows.filter { $0.owningApplication?.processID == me }   // our covers must not hide the icons
+        let scale = NSScreen.screens.first?.backingScaleFactor ?? 2
+        var out: [CGWindowID: NSImage] = [:]
+        for w in wins {
+            guard let display = content.displays.first(where: { CGDisplayBounds($0.displayID).intersects(w.bounds) }) else { continue }
+            let b = CGDisplayBounds(display.displayID)
+            let cfg = SCStreamConfiguration()
+            cfg.sourceRect = CGRect(x: w.bounds.minX - b.minX, y: w.bounds.minY - b.minY, width: w.bounds.width, height: w.bounds.height)
+            cfg.width = max(1, Int(w.bounds.width * scale)); cfg.height = max(1, Int(w.bounds.height * scale))
+            cfg.showsCursor = false
+            if let img = try? await SCScreenshotManager.captureImage(
+                contentFilter: SCContentFilter(display: display, excludingWindows: excluded), configuration: cfg) {
+                out[w.id] = NSImage(cgImage: img, size: w.bounds.size)
+            }
+        }
+        return out
     }
 
     static func bundleID(of pid: pid_t) -> String? { NSRunningApplication(processIdentifier: pid)?.bundleIdentifier }
@@ -60,6 +101,7 @@ struct HiddenTile: Identifiable {
     let pid: pid_t
     let name: String
     let icon: NSImage?
+    var shot: NSImage?        // the status icon as it looks in the menu bar
 }
 
 final class DropModel: ObservableObject {
@@ -75,7 +117,7 @@ private struct DropView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(L.t("Hidden menu bar items")).font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
             if model.tiles.isEmpty {
-                Text(L.t("Nothing hidden yet. Choose which apps to hide in Settings → Menu bar."))
+                Text(L.t("Nothing hidden yet. Choose which icons to hide in Settings → Menu bar."))
                     .font(.caption).foregroundStyle(.secondary).frame(width: 250, alignment: .leading)
             } else {
                 LazyVGrid(columns: Array(repeating: GridItem(.fixed(78), spacing: 8), count: min(4, max(1, model.tiles.count))),
@@ -83,7 +125,12 @@ private struct DropView: View {
                     ForEach(model.tiles) { t in
                         Button { onPick(t) } label: {
                             VStack(spacing: 5) {
-                                if let ic = t.icon { Image(nsImage: ic).resizable().frame(width: 30, height: 30) }
+                                if let shot = t.shot {
+                                    Image(nsImage: shot).resizable().scaledToFit().frame(maxWidth: 56, maxHeight: 22)
+                                        .clipShape(RoundedRectangle(cornerRadius: 5))
+                                } else if let ic = t.icon {
+                                    Image(nsImage: ic).resizable().frame(width: 28, height: 28)
+                                }
                                 Text(t.name).font(.system(size: 10)).lineLimit(1)
                             }
                             .frame(width: 78, height: 70)
@@ -93,7 +140,7 @@ private struct DropView: View {
                     }
                 }
             }
-            Button(L.t("Choose apps…"), action: onSettings).buttonStyle(.link).font(.caption)
+            Button(L.t("Choose icons…"), action: onSettings).buttonStyle(.link).font(.caption)
         }
         .padding(14)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
@@ -163,9 +210,9 @@ final class MenuBarManager: NSObject {
     // MARK: Covers
 
     private func hiddenWindows() -> [StatusWindow] {
-        let ids = Set(Settings.menuBarHiddenApps)
-        guard !ids.isEmpty else { return [] }
-        return StatusBar.windows().filter { ids.contains(StatusBar.bundleID(of: $0.pid) ?? "") }
+        let list = Settings.menuBarHiddenApps
+        guard !list.isEmpty else { return [] }
+        return StatusBar.windows().filter { StatusBar.isHidden($0, in: list) }
     }
 
     private func refresh(force: Bool) {
@@ -228,9 +275,15 @@ final class MenuBarManager: NSObject {
 
     private func showPanel() {
         guard let button = item?.button, let bw = button.window else { return }
-        model.tiles = hiddenWindows().map { w in
+        let wins = hiddenWindows()
+        model.tiles = wins.map { w in
             let app = NSRunningApplication(processIdentifier: w.pid)
-            return HiddenTile(id: w.id, pid: w.pid, name: app?.localizedName ?? w.owner, icon: app?.icon)
+            return HiddenTile(id: w.id, pid: w.pid, name: app?.localizedName ?? w.owner, icon: app?.icon, shot: nil)
+        }
+        Task { @MainActor [weak self] in
+            let shots = await StatusBar.images(for: wins)
+            guard let self else { return }
+            self.model.tiles = self.model.tiles.map { var t = $0; t.shot = shots[t.id]; return t }
         }
         let view = DropView(model: model, onPick: { [weak self] in self?.activate($0) },
                             onSettings: { [weak self] in self?.hidePanel(); self?.openSettings?() })

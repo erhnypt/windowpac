@@ -54,7 +54,8 @@ enum Settings {
         get { d.object(forKey: "menuBarEnabled") as? Bool ?? true }
         set { d.set(newValue, forKey: "menuBarEnabled") }
     }
-    /// Bundle IDs of apps whose menu bar icon is hidden (covered) and listed in the drop-down card instead.
+    /// Menu bar icons that are hidden (covered) and listed in the drop-down card instead: "<bundle id>#<n>" keys
+    /// (a bare bundle id from the old per-app setting hides all of that app's icons).
     static var menuBarHiddenApps: [String] {
         get { d.stringArray(forKey: "menuBarHiddenApps") ?? [] }
         set { d.set(newValue, forKey: "menuBarHiddenApps") }
