@@ -20,14 +20,23 @@ needs ⌘, ⌥ or ⌃; ⎋ cancels; ↺ resets). Defaults:
 
 ## Clipboard history
 
-Copied text is recorded (up to 50 items by default, 10–200 in Settings), newest first, duplicates collapsed.
-Items marked concealed/transient by password managers are never stored. By default the history is kept
-on disk across restarts in `~/Library/Application Support/WindowPac/clipboard.json` (owner-only);
+Copied **text, images and files** are recorded (up to 50 items by default, 10–200 in Settings; at most 15 images),
+newest first, duplicates collapsed. Items marked concealed/transient by password managers, and anything copied while an
+app from the **ignored apps** list (Settings → Clipboard; password managers by default) is in front, are never stored.
+By default the history is kept on disk across restarts in `~/Library/Application Support/WindowPac/` (owner-only);
 turn that off in Settings → Features to keep it in memory only.
 
 **Pinning:** click the pin icon on an entry (or ⌘P on the selected one). Pinned entries stay at the top, are not
 counted against the item limit, survive "Clear unpinned" and are always saved to disk, even when
 "keep after restart" is off. Unpin an entry first to delete it.
+
+**Snippets:** named notes you create in Settings → Clipboard. They sit at the top of the panel, are always saved and
+never removed automatically.
+
+## Alt-Tab extras
+
+While the list is open: **W** closes the selected window, **Q** quits its app, **M** minimizes it (hold the same
+modifier as the Alt-Tab shortcut). Hovering selects an entry and clicking switches to it.
 
 ## Menu bar icons
 

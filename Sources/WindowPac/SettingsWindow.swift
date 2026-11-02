@@ -1,5 +1,6 @@
 import Cocoa
 import SwiftUI
+import UniformTypeIdentifiers
 
 private func notifyChanged() {
     NotificationCenter.default.post(name: .windowPacSettingsChanged, object: nil)
@@ -59,6 +60,93 @@ private struct ShortcutRecorder: View {
     }
 }
 
+/// Snippets (named notes kept in the clipboard panel) and the list of apps whose copies are ignored.
+private struct ClipboardSettingsView: View {
+    @ObservedObject private var store = ClipboardStore.shared
+    @State private var editingID: UUID?
+    @State private var title = ""
+    @State private var text = ""
+    @State private var apps = Settings.clipboardIgnoredApps
+
+    private func appName(_ bundleID: String) -> String {
+        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: bundleID) else { return bundleID }
+        return FileManager.default.displayName(atPath: url.path).replacingOccurrences(of: ".app", with: "")
+    }
+
+    private func saveApps() { Settings.clipboardIgnoredApps = apps }
+
+    private func addApp() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.application]
+        panel.directoryURL = URL(fileURLWithPath: "/Applications")
+        panel.allowsMultipleSelection = true
+        guard panel.runModal() == .OK else { return }
+        for url in panel.urls {
+            if let id = Bundle(url: url)?.bundleIdentifier, !apps.contains(id) { apps.append(id) }
+        }
+        saveApps()
+    }
+
+    private func commit() {
+        let t = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !t.isEmpty, !text.isEmpty else { NSSound.beep(); return }
+        if let id = editingID { store.updateSnippet(id: id, title: t, text: text) } else { store.addSnippet(title: t, text: text) }
+        editingID = nil; title = ""; text = ""
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Snippets").font(.headline)
+                Text("Named notes that always stay at the top of the clipboard panel and are never removed automatically.")
+                    .font(.caption).foregroundStyle(.secondary)
+                if store.snippets.isEmpty {
+                    Text("No snippets yet").foregroundStyle(.secondary)
+                }
+                ForEach(store.snippets) { sn in
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text(sn.title ?? "").fontWeight(.medium)
+                            Text(sn.text).lineLimit(1).font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Button("Edit") { editingID = sn.id; title = sn.title ?? ""; text = sn.text }
+                        Button { store.deleteSnippet(sn.id); if editingID == sn.id { editingID = nil; title = ""; text = "" } }
+                            label: { Image(systemName: "trash") }
+                    }
+                }
+                TextField("Title", text: $title)
+                TextEditor(text: $text)
+                    .font(.body)
+                    .frame(height: 90)
+                    .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.secondary.opacity(0.4)))
+                HStack {
+                    Button(editingID == nil ? "Add snippet" : "Save changes") { commit() }
+                    if editingID != nil { Button("Cancel") { editingID = nil; title = ""; text = "" } }
+                }
+                Divider()
+                Text("Ignored apps").font(.headline)
+                Text("Anything copied while one of these apps is in front is not recorded.")
+                    .font(.caption).foregroundStyle(.secondary)
+                ForEach(apps, id: \.self) { id in
+                    HStack {
+                        Text(appName(id))
+                        Text(id).font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        Button { apps.removeAll { $0 == id }; saveApps() } label: { Image(systemName: "minus.circle") }
+                            .buttonStyle(.plain)
+                    }
+                }
+                HStack {
+                    Button("Add app…") { addApp() }
+                    Button("Reset list") { apps = Settings.defaultIgnoredApps; saveApps() }
+                }
+            }
+            .padding(8)
+        }
+    }
+}
+
 private struct SettingsView: View {
     @State private var refresh = 0
 
@@ -70,6 +158,7 @@ private struct SettingsView: View {
         TabView {
             shortcuts.tabItem { Label("Shortcuts", systemImage: "keyboard") }
             features.tabItem { Label("Features", systemImage: "switch.2") }
+            ClipboardSettingsView().tabItem { Label("Clipboard", systemImage: "doc.on.clipboard") }
         }
         .padding(16)
         .frame(width: 560, height: 560)
@@ -110,6 +199,8 @@ private struct SettingsView: View {
             }
             Section("Clipboard history") {
                 Toggle("Record copied text", isOn: flag({ Settings.clipboardEnabled }, { Settings.clipboardEnabled = $0 }))
+                Toggle("Record images", isOn: flag({ Settings.clipboardImages }, { Settings.clipboardImages = $0 }))
+                Toggle("Record copied files (Finder)", isOn: flag({ Settings.clipboardFiles }, { Settings.clipboardFiles = $0 }))
                 Toggle("Keep history after restart (stored on this Mac, owner-only)",
                        isOn: flag({ Settings.clipboardPersist }, { Settings.clipboardPersist = $0 }))
                 Stepper("Items to keep: \(Settings.clipboardMax)",

@@ -8,7 +8,7 @@ struct WinItem {
     let title: String
     let icon: NSImage?
     let ax: AXUIElement?       // nil: window lives on another Space and AX can't see it
-    let minimized: Bool
+    var minimized: Bool
     var noWindow = false       // running app without any window
     var windowID: CGWindowID?  // for thumbnails
 }
@@ -22,6 +22,11 @@ final class Switcher {
     private var panel: NSPanel?
     private var view: SwitcherView?
     private var session = 0
+    private var thumbs: [CGWindowID: CGImage] = [:]
+    /// Called whenever a session is over (committed, cancelled or picked with the mouse).
+    var onEnded: (() -> Void)?
+    /// Modifier symbols shown in the footer hint (⌥ for the default shortcut).
+    var hintPrefix = "⌥"
 
     // MARK: Enumeration
 
@@ -125,6 +130,7 @@ final class Switcher {
             items = Switcher.enumerate()
             guard items.count > 1 else { return }
             isActive = true
+            thumbs = [:]
             session += 1
             selected = backwards ? items.count - 1 : 1
             show()
@@ -146,6 +152,43 @@ final class Switcher {
         panel = nil; view = nil
         if activate, items.indices.contains(selected) { Switcher.activate(items[selected]) }
         items = []
+        thumbs = [:]
+        onEnded?()
+    }
+
+    // MARK: Actions while the list is open
+
+    func closeSelected() {
+        guard isActive, items.indices.contains(selected), let ax = items[selected].ax else { NSSound.beep(); return }
+        var ref: CFTypeRef?
+        guard AXUIElementCopyAttributeValue(ax, kAXCloseButtonAttribute as CFString, &ref) == .success,
+              let btn = ref, CFGetTypeID(btn) == AXUIElementGetTypeID() else { NSSound.beep(); return }
+        AXUIElementPerformAction(btn as! AXUIElement, kAXPressAction as CFString)
+        items.remove(at: selected)
+        afterRemoval()
+    }
+
+    func quitSelected() {
+        guard isActive, items.indices.contains(selected) else { return }
+        let pid = items[selected].pid
+        NSRunningApplication(processIdentifier: pid)?.terminate()
+        items.removeAll { $0.pid == pid }
+        afterRemoval()
+    }
+
+    func minimizeSelected() {
+        guard isActive, items.indices.contains(selected), let ax = items[selected].ax else { NSSound.beep(); return }
+        let now = !items[selected].minimized
+        AXUIElementSetAttributeValue(ax, kAXMinimizedAttribute as CFString, now as CFBoolean)
+        items[selected].minimized = now
+        view?.update(items: items)
+    }
+
+    private func afterRemoval() {
+        if items.isEmpty { cancel(); return }
+        selected = min(selected, items.count - 1)
+        panel?.orderOut(nil)
+        show()
     }
 
     static func activate(_ item: WinItem) {
@@ -179,7 +222,7 @@ final class Switcher {
             guard let content = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false)
             else { return }
             let byID = Dictionary(content.windows.map { ($0.windowID, $0) }, uniquingKeysWith: { a, _ in a })
-            for (i, wid) in wanted {
+            for (_, wid) in wanted where self?.thumbs[wid] == nil {
                 guard let self, self.isActive, self.session == mine else { return }
                 guard let w = byID[wid], w.frame.width > 1, w.frame.height > 1 else { continue }
                 let cfg = SCStreamConfiguration()
@@ -189,7 +232,8 @@ final class Switcher {
                 if let img = try? await SCScreenshotManager.captureImage(
                     contentFilter: SCContentFilter(desktopIndependentWindow: w), configuration: cfg),
                    self.isActive, self.session == mine {
-                    self.view?.setThumbnail(img, at: i)
+                    self.thumbs[wid] = img
+                    self.view?.setThumbnail(img, for: wid)
                 }
             }
         }
@@ -198,8 +242,10 @@ final class Switcher {
     // MARK: Overlay
 
     private func show() {
-        let v = SwitcherView(items: items)
+        let v = SwitcherView(items: items, thumbs: thumbs, hint: hintPrefix)
         v.selected = selected
+        v.onHover = { [weak self] i in self?.selected = i }
+        v.onPick = { [weak self] i in self?.selected = i; self?.commit() }
         let p = NSPanel(contentRect: CGRect(origin: .zero, size: v.frame.size),
                         styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         p.level = .screenSaver
@@ -223,26 +269,63 @@ final class Switcher {
 }
 
 private final class SwitcherView: NSView {
-    private let items: [WinItem]
+    private var items: [WinItem]
     private let cols: Int
-    private let cellW: CGFloat = 200, cellH: CGFloat = 150, pad: CGFloat = 16
-    private var thumbs: [Int: NSImage] = [:]
+    private let cellW: CGFloat = 200, cellH: CGFloat = 150, pad: CGFloat = 16, footerH: CGFloat = 26
+    private let hint: String
+    private var thumbs: [CGWindowID: NSImage] = [:]
+    var onHover: ((Int) -> Void)?
+    var onPick: ((Int) -> Void)?
     var selected = 0 { didSet { needsDisplay = true } }
     override var isFlipped: Bool { true }
 
-    init(items: [WinItem]) {
+    init(items: [WinItem], thumbs: [CGWindowID: CGImage], hint: String) {
         self.items = items
+        self.hint = hint
         cols = min(items.count, 6)
         let rows = (items.count + cols - 1) / cols
+        for (id, img) in thumbs { self.thumbs[id] = NSImage(cgImage: img, size: NSSize(width: img.width, height: img.height)) }
         super.init(frame: CGRect(x: 0, y: 0, width: CGFloat(cols) * cellW + pad * 2,
-                                 height: CGFloat(rows) * cellH + pad * 2))
+                                 height: CGFloat(rows) * cellH + pad * 2 + footerH))
     }
     required init?(coder: NSCoder) { fatalError() }
 
-    func setThumbnail(_ img: CGImage, at i: Int) {
-        thumbs[i] = NSImage(cgImage: img, size: NSSize(width: img.width, height: img.height))
+    func update(items: [WinItem]) { self.items = items; needsDisplay = true }
+
+    func setThumbnail(_ img: CGImage, for id: CGWindowID) {
+        thumbs[id] = NSImage(cgImage: img, size: NSSize(width: img.width, height: img.height))
         needsDisplay = true
     }
+
+    // MARK: Mouse: hover selects, click switches
+
+    private func index(at p: CGPoint) -> Int? {
+        guard p.x >= pad, p.y >= pad else { return nil }
+        let col = Int((p.x - pad) / cellW), row = Int((p.y - pad) / cellH)
+        guard col < cols else { return nil }
+        let i = row * cols + col
+        return items.indices.contains(i) ? i : nil
+    }
+
+    override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        trackingAreas.forEach(removeTrackingArea)
+        addTrackingArea(NSTrackingArea(rect: .zero, options: [.mouseMoved, .activeAlways, .inVisibleRect], owner: self))
+    }
+
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+
+    override func mouseMoved(with event: NSEvent) {
+        guard let i = index(at: convert(event.locationInWindow, from: nil)), i != selected else { return }
+        selected = i
+        onHover?(i)
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        if let i = index(at: convert(event.locationInWindow, from: nil)) { onPick?(i) }
+    }
+
+    // MARK: Drawing
 
     private func fit(_ size: CGSize, in box: CGRect) -> CGRect {
         let k = min(box.width / size.width, box.height / size.height, 1.5)
@@ -261,7 +344,7 @@ private final class SwitcherView: NSView {
             }
             let box = CGRect(x: r.minX + 8, y: r.minY + 8, width: r.width - 16, height: 92)
             let dim: CGFloat = (it.minimized || it.noWindow) ? 0.5 : 1
-            if let t = thumbs[i] {
+            if let id = it.windowID, let t = thumbs[id] {
                 let tr = fit(t.size, in: box)
                 t.draw(in: tr, from: .zero, operation: .sourceOver, fraction: dim, respectFlipped: true, hints: nil)
                 NSColor.white.withAlphaComponent(0.3).setStroke()
@@ -282,5 +365,10 @@ private final class SwitcherView: NSView {
                 .foregroundColor: NSColor.secondaryLabelColor, .paragraphStyle: para])
                 .draw(in: CGRect(x: row.minX + 22, y: row.minY + 16, width: row.width - 22, height: 14))
         }
+        let center = NSMutableParagraphStyle(); center.alignment = .center
+        NSAttributedString(string: "\(hint)W close window    \(hint)Q quit app    \(hint)M minimize    click or hover to pick",
+                           attributes: [.font: NSFont.systemFont(ofSize: 10), .foregroundColor: NSColor.tertiaryLabelColor,
+                                        .paragraphStyle: center])
+            .draw(in: CGRect(x: 0, y: bounds.height - footerH + 4, width: bounds.width, height: 16))
     }
 }

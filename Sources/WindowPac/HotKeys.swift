@@ -57,7 +57,11 @@ final class HotKeyController {
 
     private enum K { static let esc = 53, left = 123, right = 124, down = 125, up = 126 }
 
-    init(clipboard: ClipboardPanel, menuBar: MenuBarManager) { self.clipboard = clipboard; self.menuBar = menuBar }
+    init(clipboard: ClipboardPanel, menuBar: MenuBarManager) {
+        self.clipboard = clipboard
+        self.menuBar = menuBar
+        switcher.onEnded = { [weak self] in self?.sessionEnded() }
+    }
 
     /// Releases all global hotkeys (used while a new shortcut is being recorded).
     func suspend() {
@@ -100,6 +104,7 @@ final class HotKeyController {
     // MARK: Alt-Tab session
 
     private func advance(backwards: Bool, _ sc: Shortcut) {
+        switcher.hintPrefix = sc.holdDisplay
         switcher.advance(backwards: backwards)
         if switcher.isActive, timer == nil { beginSession(sc) }
     }
@@ -115,6 +120,9 @@ final class HotKeyController {
         add(K.left)  { [unowned self] in self.switcher.advance(backwards: true) }
         add(K.up)    { [unowned self] in self.switcher.advance(backwards: true) }
         add(K.esc)   { [unowned self] in self.endSession(commit: false) }
+        add(13) { [unowned self] in self.switcher.closeSelected() }      // W
+        add(12) { [unowned self] in self.switcher.quitSelected() }       // Q
+        add(46) { [unowned self] in self.switcher.minimizeSelected() }   // M
 
         // Releasing the modifier commits. Polled: reading the modifier state needs no permission.
         timer = Timer.scheduledTimer(withTimeInterval: 0.02, repeats: true) { [unowned self] _ in
@@ -125,9 +133,13 @@ final class HotKeyController {
     }
 
     private func endSession(commit: Bool) {
+        if switcher.isActive { commit ? switcher.commit() : switcher.cancel() }
+        sessionEnded()
+    }
+
+    /// Releases the session-only hotkeys and the modifier watcher (idempotent).
+    private func sessionEnded() {
         timer?.invalidate(); timer = nil
         sessionIDs.forEach(center.unregister); sessionIDs = []
-        guard switcher.isActive else { return }
-        commit ? switcher.commit() : switcher.cancel()
     }
 }

@@ -29,6 +29,22 @@ enum Settings {
         get { d.object(forKey: "clipboardPersist") as? Bool ?? true }
         set { d.set(newValue, forKey: "clipboardPersist") }
     }
+    static var clipboardImages: Bool {
+        get { d.object(forKey: "clipboardImages") as? Bool ?? true }
+        set { d.set(newValue, forKey: "clipboardImages") }
+    }
+    static var clipboardFiles: Bool {
+        get { d.object(forKey: "clipboardFiles") as? Bool ?? true }
+        set { d.set(newValue, forKey: "clipboardFiles") }
+    }
+    /// Bundle IDs of apps whose copies are never recorded (password managers by default).
+    static let defaultIgnoredApps = ["com.1password.1password", "com.agilebits.onepassword7", "com.agilebits.onepassword-osx",
+                                     "com.bitwarden.desktop", "org.keepassxc.keepassxc", "com.apple.keychainaccess",
+                                     "com.apple.Passwords", "com.lastpass.LastPass", "com.dashlane.dashlanephonefinal"]
+    static var clipboardIgnoredApps: [String] {
+        get { d.stringArray(forKey: "clipboardIgnoredApps") ?? defaultIgnoredApps }
+        set { d.set(newValue, forKey: "clipboardIgnoredApps") }
+    }
     static var clipboardMax: Int {
         get { min(max(d.object(forKey: "clipboardMax") as? Int ?? 50, 10), 200) }
         set { d.set(newValue, forKey: "clipboardMax") }

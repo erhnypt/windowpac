@@ -31,6 +31,14 @@ struct Shortcut: Codable, Equatable {
         if mods & UInt32(controlKey) != 0 { f.insert(.control) }
         return f
     }
+    /// The held modifiers as symbols, e.g. "⌥".
+    var holdDisplay: String {
+        var t = ""
+        if mods & UInt32(controlKey) != 0 { t += "⌃" }
+        if mods & UInt32(optionKey) != 0 { t += "⌥" }
+        if mods & UInt32(cmdKey) != 0 { t += "⌘" }
+        return t
+    }
     var holdCarbon: UInt32 { mods & ~UInt32(shiftKey) }
 
     private static let names: [Int: String] = [
