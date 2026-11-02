@@ -19,6 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         // Ask for Accessibility once, then wait until it is granted.
         let opts = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: true] as CFDictionary
         _ = AXIsProcessTrustedWithOptions(opts)
+        menuBar.openSettings = { [weak self] in self?.settingsWindow.show() }
         applySettings()
         let nc = NotificationCenter.default
         nc.addObserver(forName: .windowPacSettingsChanged, object: nil, queue: .main) { [weak self] _ in self?.applySettings() }
@@ -88,16 +89,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         m.addItem(bw)
 
         if Settings.menuBarEnabled {
-            let mb = NSMenuItem(title: menuBar.collapsed ? "Show hidden menu bar icons" : "Hide menu bar icons (left of |)",
-                                action: #selector(toggleMenuBar), keyEquivalent: "")
+            let mb = NSMenuItem(title: "Hidden menu bar items…", action: #selector(toggleMenuBar), keyEquivalent: "")
             mb.target = self
             m.addItem(mb)
-        }
-
-        if Settings.menuBarEnabled {
-            let dbg = NSMenuItem(title: "Debug: menu bar layout…", action: #selector(showMenuBarLayout), keyEquivalent: "")
-            dbg.target = self
-            m.addItem(dbg)
         }
 
         let cb = NSMenuItem(title: "Clipboard history (\(ShortcutStore.get(.clipboard).display))",
@@ -134,15 +128,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func toggleWindowless() { Settings.showWindowlessApps.toggle(); rebuildMenu() }
     @objc private func toggleBattery() { Settings.batteryWidgetEnabled.toggle(); applySettings() }
     @objc private func toggleClipboard() { Settings.clipboardEnabled.toggle(); applySettings() }
-    @objc private func showMenuBarLayout() {
-        let a = NSAlert()
-        a.messageText = "Menu bar layout"
-        a.informativeText = menuBar.layoutReport()
-        a.addButton(withTitle: "OK")
-        NSApp.activate(ignoringOtherApps: true)
-        a.runModal()
-    }
-    @objc private func toggleMenuBar() { menuBar.toggle(); rebuildMenu() }
+    @objc private func toggleMenuBar() { menuBar.toggle() }
     @objc private func showClipboard() { clipboardPanel.toggle() }
     @objc private func openSettings() { settingsWindow.show() }
     @objc private func toggleLogin() { LoginItem.set(!LoginItem.isEnabled); rebuildMenu() }

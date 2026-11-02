@@ -38,15 +38,15 @@ never removed automatically.
 While the list is open: **W** closes the selected window, **Q** quits its app, **M** minimizes it (hold the same
 modifier as the Alt-Tab shortcut). Hovering selects an entry and clicking switches to it.
 
-## Menu bar icons
+## Hidden menu bar items
 
-A **‹ ›** button and a `|` separator sit next to the WindowPac icon. Click ›, hold **⌘** and drag other apps' icons
-to the **left** of the `|` separator; click ‹ and those icons are covered by a copy of the real menu bar
-background (captured without any icon, so it needs the Screen Recording permission; without it a plain dark strip
-is used). Hidden Bar's "huge status item pushes icons away" trick no longer works on current macOS, hence the cover.
-Click the cover, › or ⌃⌘B to show them again. Extra `|` dividers (Settings → Features → Menu bar, 0–3) split the
-always-visible area into blocks you arrange by ⌘-dragging. Optional auto-hide timer. Expand the bar before ⌘-dragging.
-The covered icons are still running and still receive their notifications.
+Choose in **Settings → Menu bar** which apps' menu bar icons to hide. Their icons are covered with a capture of the
+real menu bar background (all icons excluded, so it needs the Screen Recording permission; without it a plain dark
+patch is used) and move into a Control Center–style card that drops down from WindowPac's **⌄** button (or ⌃⌘B).
+Click an app in the card to open its menu: WindowPac presses the real status item through Accessibility (falling
+back to a brief real click). The gap where an icon was stays, macOS offers no way to close it. Apple's own items
+(Wi-Fi, battery, clock) can't be hidden this way. Hidden Bar's "huge status item pushes icons away" trick no longer
+works on current macOS.
 
 ## Battery widget
 

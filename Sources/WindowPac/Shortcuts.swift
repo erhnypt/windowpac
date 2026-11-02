@@ -94,7 +94,7 @@ enum ShortcutAction: String, CaseIterable, Identifiable {
         case .switcherNext: return "Next window (hold modifier, release to switch)"
         case .switcherPrevious: return "Previous window"
         case .clipboard: return "Show clipboard history"
-        case .menuBarToggle: return "Hide / show menu bar icons"
+        case .menuBarToggle: return "Show hidden menu bar items"
         }
     }
 

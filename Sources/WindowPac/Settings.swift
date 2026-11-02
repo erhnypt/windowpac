@@ -54,18 +54,10 @@ enum Settings {
         get { d.object(forKey: "menuBarEnabled") as? Bool ?? true }
         set { d.set(newValue, forKey: "menuBarEnabled") }
     }
-    static var menuBarCollapsed: Bool {
-        get { d.bool(forKey: "menuBarCollapsed") }
-        set { d.set(newValue, forKey: "menuBarCollapsed") }
-    }
-    static var menuBarDividers: Int {
-        get { min(max(d.object(forKey: "menuBarDividers") as? Int ?? 1, 0), 3) }
-        set { d.set(newValue, forKey: "menuBarDividers") }
-    }
-    /// Seconds after which expanded icons hide again; 0 = never.
-    static var menuBarAutoHide: Int {
-        get { d.integer(forKey: "menuBarAutoHide") }
-        set { d.set(newValue, forKey: "menuBarAutoHide") }
+    /// Bundle IDs of apps whose menu bar icon is hidden (covered) and listed in the drop-down card instead.
+    static var menuBarHiddenApps: [String] {
+        get { d.stringArray(forKey: "menuBarHiddenApps") ?? [] }
+        set { d.set(newValue, forKey: "menuBarHiddenApps") }
     }
     /// True once we auto-registered the login item (so a user opt-out sticks).
     static var loginItemConfigured: Bool {

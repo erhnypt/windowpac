@@ -147,6 +147,68 @@ private struct ClipboardSettingsView: View {
     }
 }
 
+/// Choose which apps' menu bar icons are hidden (they move into the drop-down card).
+private struct MenuBarSettingsView: View {
+    private struct Row: Identifiable { let id: String; let name: String; let icon: NSImage?; let running: Bool }
+
+    @State private var hidden = Settings.menuBarHiddenApps
+    @State private var enabled = Settings.menuBarEnabled
+    @State private var rows: [Row] = []
+    private let tick = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
+
+    private func reload() {
+        var seen = Set<String>()
+        var list: [Row] = []
+        for w in StatusBar.windows() {
+            guard let id = StatusBar.bundleID(of: w.pid), seen.insert(id).inserted else { continue }
+            let app = NSRunningApplication(processIdentifier: w.pid)
+            list.append(Row(id: id, name: app?.localizedName ?? w.owner, icon: app?.icon, running: true))
+        }
+        // Apps that are hidden but not running right now stay in the list so they can be un-hidden.
+        for id in hidden where !seen.contains(id) {
+            let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: id)
+            let name = url.map { FileManager.default.displayName(atPath: $0.path).replacingOccurrences(of: ".app", with: "") } ?? id
+            list.append(Row(id: id, name: name, icon: url.map { NSWorkspace.shared.icon(forFile: $0.path) }, running: false))
+        }
+        rows = list
+    }
+
+    private func set(_ id: String, hidden on: Bool) {
+        if on, !hidden.contains(id) { hidden.append(id) }
+        if !on { hidden.removeAll { $0 == id } }
+        Settings.menuBarHiddenApps = hidden
+        notifyChanged()
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 10) {
+                Toggle("Hidden menu bar items (⌄ button)", isOn: Binding(get: { enabled },
+                    set: { enabled = $0; Settings.menuBarEnabled = $0; notifyChanged() }))
+                Text("Turn on “Hide” for an app: its menu bar icon is covered with the menu bar background and moves into the card that drops down from the ⌄ button. Click it there to open its menu. Needs the Screen Recording permission to match the background; the gap where the icon was stays.")
+                    .font(.caption).foregroundStyle(.secondary)
+                Divider()
+                Text("Apps with a menu bar icon").font(.headline)
+                if rows.isEmpty { Text("No other apps have a menu bar icon right now.").foregroundStyle(.secondary) }
+                ForEach(rows) { r in
+                    HStack {
+                        if let ic = r.icon { Image(nsImage: ic).resizable().frame(width: 22, height: 22) }
+                        Text(r.name)
+                        if !r.running { Text("not running").font(.caption).foregroundStyle(.secondary) }
+                        Spacer()
+                        Toggle("Hide", isOn: Binding(get: { hidden.contains(r.id) }, set: { set(r.id, hidden: $0) }))
+                    }
+                }
+                Text("Apple's own items (Wi-Fi, battery, clock…) can't be hidden here; manage them in System Settings → Control Center.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            .padding(8)
+        }
+        .onAppear { reload() }
+        .onReceive(tick) { _ in reload() }
+    }
+}
+
 private struct SettingsView: View {
     @State private var refresh = 0
 
@@ -158,6 +220,7 @@ private struct SettingsView: View {
         TabView {
             shortcuts.tabItem { Label("Shortcuts", systemImage: "keyboard") }
             features.tabItem { Label("Features", systemImage: "switch.2") }
+            MenuBarSettingsView().tabItem { Label("Menu bar", systemImage: "menubar.rectangle") }
             ClipboardSettingsView().tabItem { Label("Clipboard", systemImage: "doc.on.clipboard") }
         }
         .padding(16)
@@ -208,18 +271,6 @@ private struct SettingsView: View {
                         in: 10...200, step: 10)
                 Button("Clear unpinned history") { ClipboardStore.shared.clear() }
                 Text("Pinned items are never removed and always saved. Passwords copied from password managers are not recorded.").font(.caption).foregroundStyle(.secondary)
-            }
-            Section("Menu bar") {
-                Toggle("Hide / show menu bar icons (‹ ›)", isOn: flag({ Settings.menuBarEnabled }, { Settings.menuBarEnabled = $0 }))
-                Stepper("Dividers ( | ): \(Settings.menuBarDividers)",
-                        value: Binding(get: { Settings.menuBarDividers }, set: { Settings.menuBarDividers = $0; refresh += 1; notifyChanged() }),
-                        in: 0...3)
-                Picker("Hide again after", selection: Binding(get: { Settings.menuBarAutoHide },
-                                                              set: { Settings.menuBarAutoHide = $0; refresh += 1; notifyChanged() })) {
-                    Text("Never").tag(0); Text("5 seconds").tag(5); Text("10 seconds").tag(10); Text("30 seconds").tag(30)
-                }
-                Text("Show the icons with ›, then hold ⌘ and drag an icon to the left of the | separator to hide it, or to the right to keep it visible. Hiding covers those icons with a copy of the menu bar background (needs Screen Recording permission). Extra dividers split the visible area into blocks.")
-                    .font(.caption).foregroundStyle(.secondary)
             }
             Section("Other") {
                 Toggle("Desktop battery widget", isOn: flag({ Settings.batteryWidgetEnabled }, { Settings.batteryWidgetEnabled = $0 }))
