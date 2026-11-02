@@ -25,6 +25,10 @@ Items marked concealed/transient by password managers are never stored. By defau
 on disk across restarts in `~/Library/Application Support/WindowPac/clipboard.json` (owner-only);
 turn that off in Settings → Features to keep it in memory only.
 
+**Pinning:** click the pin icon on an entry (or ⌘P on the selected one). Pinned entries stay at the top, are not
+counted against the item limit, survive "Clear unpinned" and are always saved to disk, even when
+"keep after restart" is off. Unpin an entry first to delete it.
+
 ## Battery widget
 
 A small panel on the desktop (below windows, draggable, position remembered) shows the Mac's charge and

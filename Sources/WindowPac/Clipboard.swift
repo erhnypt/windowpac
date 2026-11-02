@@ -5,6 +5,18 @@ struct ClipItem: Identifiable, Codable, Equatable {
     var id = UUID()
     var text: String
     var date: Date
+    /// Pinned items are never trimmed, cleared or deleted (only unpinning makes them removable).
+    var pinned = false
+
+    init(text: String, date: Date) { self.text = text; self.date = date }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(UUID.self, forKey: .id)
+        text = try c.decode(String.self, forKey: .text)
+        date = try c.decode(Date.self, forKey: .date)
+        pinned = try c.decodeIfPresent(Bool.self, forKey: .pinned) ?? false   // history saved before pinning existed
+    }
 }
 
 /// Records copied text. Items marked as concealed/transient by password managers are never stored.
@@ -28,7 +40,8 @@ final class ClipboardStore: ObservableObject {
     /// Start or stop recording according to the settings.
     func apply() {
         timer?.invalidate(); timer = nil
-        if Settings.clipboardPersist { if items.isEmpty { load() } } else { deleteFile() }
+        if items.isEmpty { load() }
+        save()   // also drops unpinned items from disk when "keep after restart" was turned off
         guard Settings.clipboardEnabled else { return }
         lastCount = NSPasteboard.general.changeCount
         timer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in self?.poll() }
@@ -45,18 +58,29 @@ final class ClipboardStore: ObservableObject {
         if types.contains(where: { Self.skipTypes.contains($0) }) { return }
         guard let text = pb.string(forType: .string),
               !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, text.count <= 50_000 else { return }
-        items.removeAll { $0.text == text }
+        if let i = items.firstIndex(where: { $0.text == text }) {
+            if items[i].pinned { return }   // already pinned: leave it where it is
+            items.remove(at: i)
+        }
         items.insert(ClipItem(text: text, date: Date()), at: 0)
         trim()
         save()
     }
 
     private func trim() {
-        if items.count > Settings.clipboardMax { items = Array(items.prefix(Settings.clipboardMax)) }
+        // The limit only counts unpinned items; pinned ones are never dropped.
+        let keep = Set(items.filter { !$0.pinned }.prefix(Settings.clipboardMax).map(\.id))
+        items.removeAll { !$0.pinned && !keep.contains($0.id) }
     }
 
-    func remove(_ item: ClipItem) { items.removeAll { $0.id == item.id }; save() }
-    func clear() { items = []; save() }
+    func remove(_ item: ClipItem) { items.removeAll { $0.id == item.id && !$0.pinned }; save() }
+    /// Removes everything except pinned items.
+    func clear() { items.removeAll { !$0.pinned }; save() }
+    func togglePin(_ item: ClipItem) {
+        guard let i = items.firstIndex(where: { $0.id == item.id }) else { return }
+        items[i].pinned.toggle()
+        save()
+    }
 
     /// Puts the item on the pasteboard without recording it as a new copy.
     func setPasteboard(_ item: ClipItem) {
@@ -65,16 +89,21 @@ final class ClipboardStore: ObservableObject {
         pb.setString(item.text, forType: .string)
         ignoreCount = pb.changeCount
         lastCount = pb.changeCount
-        if let i = items.firstIndex(of: item) { items.insert(items.remove(at: i), at: 0); save() }
+        if let i = items.firstIndex(where: { $0.id == item.id }), !items[i].pinned {
+            items.insert(items.remove(at: i), at: 0); save()
+        }
     }
 
     // MARK: Persistence (owner-only file)
 
     private func save() {
-        guard Settings.clipboardPersist, let url = fileURL else { return }
+        guard let url = fileURL else { return }
+        // Pinned items are always kept on disk; the rest only when "keep after restart" is on.
+        let toSave = Settings.clipboardPersist ? items : items.filter { $0.pinned }
+        if toSave.isEmpty { deleteFile(); return }
         do {
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-            try JSONEncoder().encode(items).write(to: url, options: .atomic)
+            try JSONEncoder().encode(toSave).write(to: url, options: .atomic)
             try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
         } catch { NSLog("WindowPac: could not save clipboard history: \(error)") }
     }
@@ -82,7 +111,7 @@ final class ClipboardStore: ObservableObject {
     private func load() {
         guard let url = fileURL, let data = try? Data(contentsOf: url),
               let list = try? JSONDecoder().decode([ClipItem].self, from: data) else { return }
-        items = list
+        items = Settings.clipboardPersist ? list : list.filter { $0.pinned }
     }
 
     private func deleteFile() { if let url = fileURL { try? FileManager.default.removeItem(at: url) } }
@@ -153,7 +182,14 @@ private struct ClipboardView: View {
     }()
 
     private var filtered: [ClipItem] {
-        query.isEmpty ? store.items : store.items.filter { $0.text.localizedCaseInsensitiveContains(query) }
+        let base = query.isEmpty ? store.items : store.items.filter { $0.text.localizedCaseInsensitiveContains(query) }
+        return base.filter(\.pinned) + base.filter { !$0.pinned }   // pinned first
+    }
+
+    private func togglePin(_ item: ClipItem) {
+        store.togglePin(item)
+        // Keep the selection on the same entry after it moved.
+        DispatchQueue.main.async { if let i = filtered.firstIndex(where: { $0.id == item.id }) { selection = i } }
     }
 
     private func move(_ d: Int) {
@@ -175,6 +211,10 @@ private struct ClipboardView: View {
                 .onKeyPress(.downArrow) { move(1); return .handled }
                 .onKeyPress(.upArrow) { move(-1); return .handled }
                 .onKeyPress(.escape) { onClose(); return .handled }
+                .onKeyPress(characters: CharacterSet(charactersIn: "pP"), phases: .down) { press in
+                    guard press.modifiers.contains(.command), filtered.indices.contains(selection) else { return .ignored }
+                    togglePin(filtered[selection]); return .handled
+                }
                 .onSubmit { pickSelected() }
                 .onChange(of: query) { _, _ in selection = 0 }
             Divider()
@@ -201,9 +241,9 @@ private struct ClipboardView: View {
             }
             Divider()
             HStack {
-                Text("↩ paste   ↑↓ select   ⎋ close").font(.system(size: 11)).foregroundStyle(.secondary)
+                Text("↩ paste   ↑↓ select   ⌘P pin   ⎋ close").font(.system(size: 11)).foregroundStyle(.secondary)
                 Spacer()
-                Button("Clear all") { store.clear() }.buttonStyle(.plain).font(.system(size: 11)).foregroundStyle(.secondary)
+                Button("Clear unpinned") { store.clear() }.buttonStyle(.plain).font(.system(size: 11)).foregroundStyle(.secondary)
             }
             .padding(.horizontal, 12).padding(.vertical, 8)
         }
@@ -221,8 +261,13 @@ private struct ClipboardView: View {
                     .font(.system(size: 10)).foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
-            Button { store.remove(item) } label: { Image(systemName: "xmark.circle.fill") }
-                .buttonStyle(.plain).foregroundStyle(.tertiary)
+            Button { togglePin(item) } label: { Image(systemName: item.pinned ? "pin.fill" : "pin") }
+                .buttonStyle(.plain).foregroundStyle(item.pinned ? Color.accentColor : Color.secondary)
+                .help(item.pinned ? "Unpin" : "Pin (never deleted)")
+            if !item.pinned {
+                Button { store.remove(item) } label: { Image(systemName: "xmark.circle.fill") }
+                    .buttonStyle(.plain).foregroundStyle(.tertiary)
+            }
         }
         .padding(.horizontal, 12).padding(.vertical, 6)
         .background(selected ? Color.accentColor.opacity(0.25) : Color.clear)

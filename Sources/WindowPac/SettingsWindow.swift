@@ -115,8 +115,8 @@ private struct SettingsView: View {
                 Stepper("Items to keep: \(Settings.clipboardMax)",
                         value: Binding(get: { Settings.clipboardMax }, set: { Settings.clipboardMax = $0; refresh += 1; notifyChanged() }),
                         in: 10...200, step: 10)
-                Button("Clear history") { ClipboardStore.shared.clear() }
-                Text("Passwords copied from password managers are not recorded.").font(.caption).foregroundStyle(.secondary)
+                Button("Clear unpinned history") { ClipboardStore.shared.clear() }
+                Text("Pinned items are never removed and always saved. Passwords copied from password managers are not recorded.").font(.caption).foregroundStyle(.secondary)
             }
             Section("Other") {
                 Toggle("Desktop battery widget", isOn: flag({ Settings.batteryWidgetEnabled }, { Settings.batteryWidgetEnabled = $0 }))
