@@ -84,6 +84,16 @@ final class MenuBarManager: NSObject {
         }
     }
 
+    /// Troubleshooting: collapse with an explicit separator length (nil = expand), without saving anything.
+    func debugCollapse(length: CGFloat?) {
+        guard let separator else { return }
+        collapsed = length != nil
+        separator.length = length ?? NSStatusItem.variableLength
+        separator.button?.title = collapsed ? "" : "|"
+        toggleItem?.button?.image = NSImage(systemSymbolName: collapsed ? "chevron.left" : "chevron.right",
+                                            accessibilityDescription: nil)
+    }
+
     /// Troubleshooting: where every menu bar item currently is (x position, left → right).
     func layoutReport() -> String {
         let info = (CGWindowListCopyWindowInfo([.optionAll], kCGNullWindowID) as? [[String: Any]]) ?? []
@@ -100,7 +110,8 @@ final class MenuBarManager: NSObject {
             rows.append((x, "x=\(Int(x))  w=\(Int(w))  \(owner)\(on)\(tag)"))
         }
         let screen = NSScreen.main.map { "screen width \(Int($0.frame.width))" } ?? ""
-        return "collapsed=\(collapsed)  \(screen)  macOS \(ProcessInfo.processInfo.operatingSystemVersionString)\n\n"
+        let sepW = separator?.button?.window.map { Int($0.frame.width) } ?? -1
+        return "collapsed=\(collapsed)  separator window width=\(sepW)  length=\(Int(separator?.length ?? 0))  \(screen)  macOS \(ProcessInfo.processInfo.operatingSystemVersionString)\n\n"
             + rows.sorted { $0.0 < $1.0 }.map { $0.1 }.joined(separator: "\n")
     }
 

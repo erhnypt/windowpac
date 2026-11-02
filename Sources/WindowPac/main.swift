@@ -139,8 +139,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         a.messageText = "Menu bar layout"
         a.informativeText = menuBar.layoutReport()
         a.addButton(withTitle: "OK")
+        a.addButton(withTitle: "Test collapse 10000")
+        a.addButton(withTitle: "Test collapse 3000")
+        a.addButton(withTitle: "Test collapse 1200")
+        a.addButton(withTitle: "Expand")
         NSApp.activate(ignoringOtherApps: true)
-        a.runModal()
+        let lengths: [CGFloat?] = [nil, 10_000, 3_000, 1_200, nil]
+        let i = a.runModal().rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
+        guard i > 0, i < lengths.count else { return }
+        menuBar.debugCollapse(length: lengths[i])
+        // Show the new state for a moment, then report it again.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in self?.showMenuBarLayout() }
     }
     @objc private func toggleMenuBar() { menuBar.toggle(); rebuildMenu() }
     @objc private func showClipboard() { clipboardPanel.toggle() }
