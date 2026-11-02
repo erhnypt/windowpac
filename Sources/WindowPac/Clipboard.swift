@@ -351,7 +351,7 @@ private struct ClipboardView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            TextField("Search clipboard history…", text: $query)
+            TextField(L.t("Search clipboard history…"), text: $query)
                 .textFieldStyle(.plain)
                 .font(.system(size: 15))
                 .padding(12)
@@ -368,7 +368,7 @@ private struct ClipboardView: View {
             Divider()
             if filtered.isEmpty {
                 Spacer()
-                Text(store.items.isEmpty ? "Nothing copied yet" : "No matches").foregroundStyle(.secondary)
+                Text(store.items.isEmpty ? L.t("Nothing copied yet") : L.t("No matches")).foregroundStyle(.secondary)
                 Spacer()
             } else {
                 ScrollViewReader { proxy in
@@ -388,9 +388,9 @@ private struct ClipboardView: View {
             }
             Divider()
             HStack {
-                Text("↩ paste   ↑↓ select   ⌘P pin   ⎋ close").font(.system(size: 11)).foregroundStyle(.secondary)
+                Text(L.t("↩ paste   ↑↓ select   ⌘P pin   ⎋ close")).font(.system(size: 11)).foregroundStyle(.secondary)
                 Spacer()
-                Button("Clear unpinned") { store.clear() }.buttonStyle(.plain).font(.system(size: 11)).foregroundStyle(.secondary)
+                Button(L.t("Clear unpinned")) { store.clear() }.buttonStyle(.plain).font(.system(size: 11)).foregroundStyle(.secondary)
             }
             .padding(.horizontal, 12).padding(.vertical, 8)
         }
@@ -414,12 +414,12 @@ private struct ClipboardView: View {
             case .files:
                 let names = item.paths.map { ($0 as NSString).lastPathComponent }
                 Text(names.joined(separator: ", ")).font(.system(size: 12)).lineLimit(2).truncationMode(.middle)
-                Text(names.count == 1 ? "File" : "\(names.count) files").font(.system(size: 10)).foregroundStyle(.secondary)
+                Text(names.count == 1 ? L.t("File") : L.f("%d files", names.count)).font(.system(size: 10)).foregroundStyle(.secondary)
             case .image:
                 if let img = store.thumbnail(for: item) {
                     Image(nsImage: img).resizable().scaledToFit().frame(maxWidth: 180, maxHeight: 54, alignment: .leading)
                 }
-                Text("Image \(item.imageSize ?? "")").font(.system(size: 10)).foregroundStyle(.secondary)
+                Text(L.f("Image %@", item.imageSize ?? "")).font(.system(size: 10)).foregroundStyle(.secondary)
             }
         }
     }
@@ -437,7 +437,7 @@ private struct ClipboardView: View {
             if !item.isSnippet {
                 Button { togglePin(item) } label: { Image(systemName: item.pinned ? "pin.fill" : "pin") }
                     .buttonStyle(.plain).foregroundStyle(item.pinned ? Color.accentColor : Color.secondary)
-                    .help(item.pinned ? "Unpin" : "Pin (never deleted)")
+                    .help(item.pinned ? L.t("Unpin") : L.t("Pin (never deleted)"))
                 if !item.pinned {
                     Button { store.remove(item) } label: { Image(systemName: "xmark.circle.fill") }
                         .buttonStyle(.plain).foregroundStyle(.tertiary)

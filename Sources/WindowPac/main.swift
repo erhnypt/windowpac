@@ -57,62 +57,73 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         m.removeAllItems()
         m.delegate = self
         let ax = AXIsProcessTrusted()
-        let state = NSMenuItem(title: ax ? "Active" : "Waiting for Accessibility permission…", action: nil, keyEquivalent: "")
+        let state = NSMenuItem(title: ax ? L.t("Active") : L.t("Waiting for Accessibility permission…"), action: nil, keyEquivalent: "")
         state.isEnabled = false
         m.addItem(state)
-        let hk = monitor.failed.isEmpty ? "Hotkeys: ✓ registered" : "Hotkeys: ✗ unavailable: " + monitor.failed.joined(separator: ", ")
-        for line in ["Accessibility: \(ax ? "✓" : "✗ missing")", hk,
-                     "Last snap: \(monitor.lastResult.isEmpty ? "-" : monitor.lastResult)"] {
+        let hk = monitor.failed.isEmpty ? L.t("Hotkeys: ✓ registered") : L.t("Hotkeys: ✗ unavailable: ") + monitor.failed.joined(separator: ", ")
+        for line in [L.t("Accessibility:") + " " + (ax ? "✓" : L.t("✗ missing")), hk,
+                     L.t("Last snap:") + " " + (monitor.lastResult.isEmpty ? "-" : monitor.lastResult)] {
             let it = NSMenuItem(title: line, action: nil, keyEquivalent: ""); it.isEnabled = false
             m.addItem(it)
         }
         if !ax {
-            m.addItem(withTitle: "Open Accessibility Settings", action: #selector(openAccessibility), keyEquivalent: "").target = self
+            m.addItem(withTitle: L.t("Open Accessibility Settings"), action: #selector(openAccessibility), keyEquivalent: "").target = self
         }
         m.addItem(.separator())
 
-        let snap = NSMenuItem(title: "Window snapping", action: #selector(toggleSnap), keyEquivalent: "")
+        let snap = NSMenuItem(title: L.t("Window snapping"), action: #selector(toggleSnap), keyEquivalent: "")
         snap.state = Settings.snapEnabled ? .on : .off; snap.target = self
         m.addItem(snap)
 
-        let sw = NSMenuItem(title: "Alt-Tab window switcher (\(ShortcutStore.get(.switcherNext).display))",
+        let sw = NSMenuItem(title: L.t("Alt-Tab window switcher") + " (\(ShortcutStore.get(.switcherNext).display))",
                             action: #selector(toggleSwitcher), keyEquivalent: "")
         sw.state = Settings.switcherEnabled ? .on : .off; sw.target = self
         m.addItem(sw)
 
-        let wl = NSMenuItem(title: "Alt-Tab: include apps without windows", action: #selector(toggleWindowless), keyEquivalent: "")
+        let wl = NSMenuItem(title: L.t("Alt-Tab: include apps without windows"), action: #selector(toggleWindowless), keyEquivalent: "")
         wl.state = Settings.showWindowlessApps ? .on : .off; wl.target = self
         m.addItem(wl)
 
-        let bw = NSMenuItem(title: "Desktop battery widget", action: #selector(toggleBattery), keyEquivalent: "")
+        let bw = NSMenuItem(title: L.t("Desktop battery widget"), action: #selector(toggleBattery), keyEquivalent: "")
         bw.state = Settings.batteryWidgetEnabled ? .on : .off; bw.target = self
         m.addItem(bw)
 
         if Settings.menuBarEnabled {
-            let mb = NSMenuItem(title: "Hidden menu bar items…", action: #selector(toggleMenuBar), keyEquivalent: "")
+            let mb = NSMenuItem(title: L.t("Hidden menu bar items…"), action: #selector(toggleMenuBar), keyEquivalent: "")
             mb.target = self
             m.addItem(mb)
         }
 
-        let cb = NSMenuItem(title: "Clipboard history (\(ShortcutStore.get(.clipboard).display))",
+        let cb = NSMenuItem(title: L.t("Clipboard history") + " (\(ShortcutStore.get(.clipboard).display))",
                             action: #selector(toggleClipboard), keyEquivalent: "")
         cb.state = Settings.clipboardEnabled ? .on : .off; cb.target = self
         m.addItem(cb)
-        let show = NSMenuItem(title: "Show clipboard history…", action: #selector(showClipboard), keyEquivalent: "")
+        let show = NSMenuItem(title: L.t("Show clipboard history…"), action: #selector(showClipboard), keyEquivalent: "")
         show.target = self
         m.addItem(show)
 
         m.addItem(.separator())
-        let st = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
+        let st = NSMenuItem(title: L.t("Settings…"), action: #selector(openSettings), keyEquivalent: ",")
         st.target = self
         m.addItem(st)
         m.addItem(.separator())
 
-        let login = NSMenuItem(title: "Launch at login", action: #selector(toggleLogin), keyEquivalent: "")
+        let langMenu = NSMenu()
+        for (title, lang) in [(L.t("Automatic"), AppLanguage.auto), ("English", .en), ("Türkçe", .tr)] {
+            let it = NSMenuItem(title: title, action: #selector(pickLanguage(_:)), keyEquivalent: "")
+            it.representedObject = lang.rawValue; it.target = self
+            it.state = Settings.language == lang ? .on : .off
+            langMenu.addItem(it)
+        }
+        let langItem = NSMenuItem(title: L.t("Language"), action: nil, keyEquivalent: "")
+        langItem.submenu = langMenu
+        m.addItem(langItem)
+
+        let login = NSMenuItem(title: L.t("Launch at login"), action: #selector(toggleLogin), keyEquivalent: "")
         login.state = LoginItem.isEnabled ? .on : .off; login.target = self
         m.addItem(login)
         m.addItem(.separator())
-        m.addItem(withTitle: "Quit WindowPac", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        m.addItem(withTitle: L.t("Quit WindowPac"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         statusItem.menu = m
     }
 
@@ -128,6 +139,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func toggleWindowless() { Settings.showWindowlessApps.toggle(); rebuildMenu() }
     @objc private func toggleBattery() { Settings.batteryWidgetEnabled.toggle(); applySettings() }
     @objc private func toggleClipboard() { Settings.clipboardEnabled.toggle(); applySettings() }
+    @objc private func pickLanguage(_ item: NSMenuItem) {
+        if let raw = item.representedObject as? String, let l = AppLanguage(rawValue: raw) { Settings.language = l }
+        applySettings()
+    }
     @objc private func toggleMenuBar() { menuBar.toggle() }
     @objc private func showClipboard() { clipboardPanel.toggle() }
     @objc private func openSettings() { settingsWindow.show() }

@@ -73,9 +73,9 @@ private struct DropView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Hidden menu bar items").font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
+            Text(L.t("Hidden menu bar items")).font(.system(size: 12, weight: .semibold)).foregroundStyle(.secondary)
             if model.tiles.isEmpty {
-                Text("Nothing hidden yet. Choose which apps to hide in Settings → Menu bar.")
+                Text(L.t("Nothing hidden yet. Choose which apps to hide in Settings → Menu bar."))
                     .font(.caption).foregroundStyle(.secondary).frame(width: 250, alignment: .leading)
             } else {
                 LazyVGrid(columns: Array(repeating: GridItem(.fixed(78), spacing: 8), count: min(4, max(1, model.tiles.count))),
@@ -93,7 +93,7 @@ private struct DropView: View {
                     }
                 }
             }
-            Button("Choose apps…", action: onSettings).buttonStyle(.link).font(.caption)
+            Button(L.t("Choose apps…"), action: onSettings).buttonStyle(.link).font(.caption)
         }
         .padding(14)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 18))
@@ -141,7 +141,7 @@ final class MenuBarManager: NSObject {
         let t = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         t.autosaveName = "wp_hidden_items"
         t.button?.image = NSImage(systemSymbolName: "chevron.down", accessibilityDescription: "Hidden menu bar items")
-        t.button?.toolTip = "Hidden menu bar items"
+        t.button?.toolTip = L.t("Hidden menu bar items")
         t.button?.target = self
         t.button?.action = #selector(clicked)
         item = t

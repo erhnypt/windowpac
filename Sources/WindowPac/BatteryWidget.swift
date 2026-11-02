@@ -12,7 +12,7 @@ private struct BatteryWidgetView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if model.rows.isEmpty {
-                Text("No battery information").font(.caption).foregroundStyle(.secondary)
+                Text(L.t("No battery information")).font(.caption).foregroundStyle(.secondary)
             }
             ForEach(model.rows) { r in
                 HStack(spacing: 10) {

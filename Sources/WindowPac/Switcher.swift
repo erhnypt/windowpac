@@ -360,13 +360,13 @@ private final class SwitcherView: NSView {
             NSAttributedString(string: name, attributes: [.font: NSFont.systemFont(ofSize: 12, weight: .medium),
                 .foregroundColor: NSColor.labelColor, .paragraphStyle: para])
                 .draw(in: CGRect(x: row.minX + 22, y: row.minY, width: row.width - 22, height: 16))
-            let sub = it.noWindow ? "no window" : (it.minimized ? "minimized" : (it.title.isEmpty ? "" : it.appName))
+            let sub = it.noWindow ? L.t("no window") : (it.minimized ? L.t("minimized") : (it.title.isEmpty ? "" : it.appName))
             NSAttributedString(string: sub, attributes: [.font: NSFont.systemFont(ofSize: 10),
                 .foregroundColor: NSColor.secondaryLabelColor, .paragraphStyle: para])
                 .draw(in: CGRect(x: row.minX + 22, y: row.minY + 16, width: row.width - 22, height: 14))
         }
         let center = NSMutableParagraphStyle(); center.alignment = .center
-        NSAttributedString(string: "\(hint)W close window    \(hint)Q quit app    \(hint)M minimize    click or hover to pick",
+        NSAttributedString(string: "\(hint)W \(L.t("close window"))    \(hint)Q \(L.t("quit app"))    \(hint)M \(L.t("minimize"))    \(L.t("click or hover to pick"))",
                            attributes: [.font: NSFont.systemFont(ofSize: 10), .foregroundColor: NSColor.tertiaryLabelColor,
                                         .paragraphStyle: center])
             .draw(in: CGRect(x: 0, y: bounds.height - footerH + 4, width: bounds.width, height: 16))

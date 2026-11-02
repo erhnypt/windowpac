@@ -70,7 +70,10 @@ enum ShortcutAction: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    enum Group: String, CaseIterable { case windows = "Window snapping", switcher = "Alt-Tab switcher", clipboard = "Clipboard history", menuBar = "Menu bar" }
+    enum Group: String, CaseIterable {
+        case windows = "Window snapping", switcher = "Alt-Tab switcher", clipboard = "Clipboard history", menuBar = "Menu bar"
+        var title: String { L.t(rawValue) }
+    }
 
     var group: Group {
         switch self {
@@ -83,18 +86,18 @@ enum ShortcutAction: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .snapLeft: return "Snap left"
-        case .snapRight: return "Snap right"
-        case .maximize: return "Fill screen"
-        case .restore: return "Restore size / minimize"
-        case .moveDisplayLeft: return "Move to previous display"
-        case .moveDisplayRight: return "Move to next display"
-        case .enterFullScreen: return "Enter full screen"
-        case .exitFullScreen: return "Exit full screen"
-        case .switcherNext: return "Next window (hold modifier, release to switch)"
-        case .switcherPrevious: return "Previous window"
-        case .clipboard: return "Show clipboard history"
-        case .menuBarToggle: return "Show hidden menu bar items"
+        case .snapLeft: return L.t("Snap left")
+        case .snapRight: return L.t("Snap right")
+        case .maximize: return L.t("Fill screen")
+        case .restore: return L.t("Restore size / minimize")
+        case .moveDisplayLeft: return L.t("Move to previous display")
+        case .moveDisplayRight: return L.t("Move to next display")
+        case .enterFullScreen: return L.t("Enter full screen")
+        case .exitFullScreen: return L.t("Exit full screen")
+        case .switcherNext: return L.t("Next window (hold modifier, release to switch)")
+        case .switcherPrevious: return L.t("Previous window")
+        case .clipboard: return L.t("Show clipboard history")
+        case .menuBarToggle: return L.t("Show hidden menu bar items")
         }
     }
 

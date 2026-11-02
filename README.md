@@ -3,6 +3,11 @@
 Windows-style window management for macOS (Apple Silicon + Intel, macOS 14+).
 Menu-bar app, no Dock icon.
 
+## Language
+
+English and Turkish. The default follows the system language; change it any time in the menu bar icon → **Language**
+or Settings → Features → Language (takes effect immediately, no restart).
+
 ## Shortcuts
 
 Every shortcut can be changed in **menu bar icon → Settings… → Shortcuts** (click the button, press the new keys;

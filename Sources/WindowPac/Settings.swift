@@ -59,6 +59,10 @@ enum Settings {
         get { d.stringArray(forKey: "menuBarHiddenApps") ?? [] }
         set { d.set(newValue, forKey: "menuBarHiddenApps") }
     }
+    static var language: AppLanguage {
+        get { AppLanguage(rawValue: d.string(forKey: "language") ?? "") ?? .auto }
+        set { d.set(newValue.rawValue, forKey: "language") }
+    }
     /// True once we auto-registered the login item (so a user opt-out sticks).
     static var loginItemConfigured: Bool {
         get { d.bool(forKey: "loginItemConfigured") }

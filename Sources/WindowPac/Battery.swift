@@ -24,7 +24,7 @@ enum BatteryReader {
             let onAC = (d[kIOPSPowerSourceStateKey] as? String) == kIOPSACPowerValue
             return BatteryRow(id: "mac", name: Host.current().localizedName ?? "Mac", symbol: "laptopcomputer",
                               percent: full > 0 ? cur * 100 / full : cur, charging: charging,
-                              detail: onAC && !charging ? "Plugged in" : nil)
+                              detail: onAC && !charging ? L.t("Plugged in") : nil)
         }
         return nil
     }
@@ -56,7 +56,7 @@ enum BatteryReader {
                     var parts: [String] = []
                     if let l { parts.append("L \(l)%") }
                     if let r { parts.append("R \(r)%") }
-                    if let cs { parts.append("Case \(cs)%") }
+                    if let cs { parts.append(L.t("Case") + " \(cs)%") }
                     let kind = ((dev["device_minorType"] as? String) ?? "").lowercased()
                     let symbol = kind.contains("mouse") ? "computermouse"
                         : kind.contains("keyboard") ? "keyboard"
