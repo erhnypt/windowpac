@@ -70,9 +70,26 @@ final class MenuBarManager: NSObject {
         toggleItem?.button?.image = NSImage(systemSymbolName: collapsed ? "chevron.left" : "chevron.right",
                                             accessibilityDescription: "Show or hide menu bar icons")
         toggleItem?.button?.toolTip = collapsed ? "Show hidden menu bar icons" : "Hide menu bar icons left of |"
-        separator?.length = collapsed ? 10_000 : NSStatusItem.variableLength
-        separator?.button?.title = collapsed ? "" : "|"
-        separator?.button?.alphaValue = 0.45
+        applySeparator(width: collapsed ? 10_000 : nil)
+    }
+
+    /// Widens the separator through its *content* (a blank image) as well as `length`: some macOS versions
+    /// ignore a huge `length` on its own but still size the item to its image.
+    private func applySeparator(width: CGFloat?) {
+        guard let b = separator?.button else { return }
+        if let width {
+            let blank = NSImage(size: NSSize(width: width, height: 1))
+            blank.isTemplate = true
+            b.image = blank
+            b.imagePosition = .imageOnly
+            b.title = ""
+            separator?.length = NSStatusItem.variableLength
+        } else {
+            b.image = nil
+            b.title = "|"
+            separator?.length = NSStatusItem.variableLength
+        }
+        b.alphaValue = 0.45
     }
 
     private func scheduleAutoHide() {
@@ -88,8 +105,7 @@ final class MenuBarManager: NSObject {
     func debugCollapse(length: CGFloat?) {
         guard let separator else { return }
         collapsed = length != nil
-        separator.length = length ?? NSStatusItem.variableLength
-        separator.button?.title = collapsed ? "" : "|"
+        applySeparator(width: length)
         toggleItem?.button?.image = NSImage(systemSymbolName: collapsed ? "chevron.left" : "chevron.right",
                                             accessibilityDescription: nil)
     }
