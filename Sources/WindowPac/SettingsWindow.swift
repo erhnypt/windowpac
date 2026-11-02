@@ -127,7 +127,7 @@ private struct SettingsView: View {
                                                               set: { Settings.menuBarAutoHide = $0; refresh += 1; notifyChanged() })) {
                     Text("Never").tag(0); Text("5 seconds").tag(5); Text("10 seconds").tag(10); Text("30 seconds").tag(30)
                 }
-                Text("Show the icons with ›, then hold ⌘ and drag an icon to the left of the | separator to hide it, or to the right to keep it visible. Extra dividers split the visible area into blocks.")
+                Text("Show the icons with ›, then hold ⌘ and drag an icon to the left of the | separator to hide it, or to the right to keep it visible. Hiding covers those icons with a copy of the menu bar background (needs Screen Recording permission). Extra dividers split the visible area into blocks.")
                     .font(.caption).foregroundStyle(.secondary)
             }
             Section("Other") {

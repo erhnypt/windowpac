@@ -32,10 +32,12 @@ counted against the item limit, survive "Clear unpinned" and are always saved to
 ## Menu bar icons
 
 A **‹ ›** button and a `|` separator sit next to the WindowPac icon. Click ›, hold **⌘** and drag other apps' icons
-to the **left** of the `|` separator; click ‹ and everything left of the separator disappears. Click again (or
-⌃⌘B) to show it. Extra `|` dividers (Settings → Features → Menu bar, 0–3) split the always-visible area into
-blocks that you arrange by ⌘-dragging as well. Optional auto-hide timer. Expand the bar before ⌘-dragging.
-If a hidden icon is needed, ⌃⌘B or the WindowPac menu shows it again.
+to the **left** of the `|` separator; click ‹ and those icons are covered by a copy of the real menu bar
+background (captured without any icon, so it needs the Screen Recording permission; without it a plain dark strip
+is used). Hidden Bar's "huge status item pushes icons away" trick no longer works on current macOS, hence the cover.
+Click the cover, › or ⌃⌘B to show them again. Extra `|` dividers (Settings → Features → Menu bar, 0–3) split the
+always-visible area into blocks you arrange by ⌘-dragging. Optional auto-hide timer. Expand the bar before ⌘-dragging.
+The covered icons are still running and still receive their notifications.
 
 ## Battery widget
 
