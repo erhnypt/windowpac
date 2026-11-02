@@ -3,7 +3,8 @@ import ApplicationServices
 
 final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     private let clipboardPanel = ClipboardPanel()
-    private lazy var monitor = HotKeyController(clipboard: clipboardPanel)
+    private let menuBar = MenuBarManager()
+    private lazy var monitor = HotKeyController(clipboard: clipboardPanel, menuBar: menuBar)
     private let battery = BatteryWidget()
     private let settingsWindow = SettingsWindowController()
     private var statusItem: NSStatusItem!
@@ -11,6 +12,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func applicationDidFinishLaunching(_ note: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        statusItem.autosaveName = "wp_main"
         statusItem.button?.image = NSImage(systemSymbolName: "rectangle.split.2x1", accessibilityDescription: "WindowPac")
         rebuildMenu()
 
@@ -32,6 +34,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         monitor.reload()
         battery.apply()
         ClipboardStore.shared.apply()
+        menuBar.apply()
         rebuildMenu()
     }
 
@@ -84,6 +87,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         bw.state = Settings.batteryWidgetEnabled ? .on : .off; bw.target = self
         m.addItem(bw)
 
+        if Settings.menuBarEnabled {
+            let mb = NSMenuItem(title: menuBar.collapsed ? "Show hidden menu bar icons" : "Hide menu bar icons (left of |)",
+                                action: #selector(toggleMenuBar), keyEquivalent: "")
+            mb.target = self
+            m.addItem(mb)
+        }
+
+        if Settings.menuBarEnabled {
+            let dbg = NSMenuItem(title: "Debug: menu bar layout…", action: #selector(showMenuBarLayout), keyEquivalent: "")
+            dbg.target = self
+            m.addItem(dbg)
+        }
+
         let cb = NSMenuItem(title: "Clipboard history (\(ShortcutStore.get(.clipboard).display))",
                             action: #selector(toggleClipboard), keyEquivalent: "")
         cb.state = Settings.clipboardEnabled ? .on : .off; cb.target = self
@@ -118,6 +134,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func toggleWindowless() { Settings.showWindowlessApps.toggle(); rebuildMenu() }
     @objc private func toggleBattery() { Settings.batteryWidgetEnabled.toggle(); applySettings() }
     @objc private func toggleClipboard() { Settings.clipboardEnabled.toggle(); applySettings() }
+    @objc private func showMenuBarLayout() {
+        let a = NSAlert()
+        a.messageText = "Menu bar layout"
+        a.informativeText = menuBar.layoutReport()
+        a.addButton(withTitle: "OK")
+        a.addButton(withTitle: "Test collapse 10000")
+        a.addButton(withTitle: "Test collapse 3000")
+        a.addButton(withTitle: "Test collapse 1200")
+        a.addButton(withTitle: "Expand")
+        NSApp.activate(ignoringOtherApps: true)
+        let lengths: [CGFloat?] = [nil, 10_000, 3_000, 1_200, nil]
+        let i = a.runModal().rawValue - NSApplication.ModalResponse.alertFirstButtonReturn.rawValue
+        guard i > 0, i < lengths.count else { return }
+        menuBar.debugCollapse(length: lengths[i])
+        // Show the new state for a moment, then report it again.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in self?.showMenuBarLayout() }
+    }
+    @objc private func toggleMenuBar() { menuBar.toggle(); rebuildMenu() }
     @objc private func showClipboard() { clipboardPanel.toggle() }
     @objc private func openSettings() { settingsWindow.show() }
     @objc private func toggleLogin() { LoginItem.set(!LoginItem.isEnabled); rebuildMenu() }

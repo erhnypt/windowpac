@@ -33,6 +33,24 @@ enum Settings {
         get { min(max(d.object(forKey: "clipboardMax") as? Int ?? 50, 10), 200) }
         set { d.set(newValue, forKey: "clipboardMax") }
     }
+    /// Menu bar icon manager (‹ › toggle, hidden zone, dividers).
+    static var menuBarEnabled: Bool {
+        get { d.object(forKey: "menuBarEnabled") as? Bool ?? true }
+        set { d.set(newValue, forKey: "menuBarEnabled") }
+    }
+    static var menuBarCollapsed: Bool {
+        get { d.bool(forKey: "menuBarCollapsed") }
+        set { d.set(newValue, forKey: "menuBarCollapsed") }
+    }
+    static var menuBarDividers: Int {
+        get { min(max(d.object(forKey: "menuBarDividers") as? Int ?? 1, 0), 3) }
+        set { d.set(newValue, forKey: "menuBarDividers") }
+    }
+    /// Seconds after which expanded icons hide again; 0 = never.
+    static var menuBarAutoHide: Int {
+        get { d.integer(forKey: "menuBarAutoHide") }
+        set { d.set(newValue, forKey: "menuBarAutoHide") }
+    }
     /// True once we auto-registered the login item (so a user opt-out sticks).
     static var loginItemConfigured: Bool {
         get { d.bool(forKey: "loginItemConfigured") }
