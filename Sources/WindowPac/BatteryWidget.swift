@@ -36,11 +36,29 @@ private struct BatteryWidgetView: View {
     }
 }
 
+/// Hosting view that drags the whole panel with the mouse. SwiftUI content swallows the mouse-down, so the
+/// system's "movable by window background" never kicks in.
+private final class DragHostingView<Content: View>: NSHostingView<Content> {
+    private var grab: CGPoint?
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override func mouseDown(with event: NSEvent) {
+        guard let w = window else { return }
+        let m = NSEvent.mouseLocation
+        grab = CGPoint(x: m.x - w.frame.minX, y: m.y - w.frame.minY)
+    }
+    override func mouseDragged(with event: NSEvent) {
+        guard let w = window, let g = grab else { return }
+        let m = NSEvent.mouseLocation
+        w.setFrameOrigin(CGPoint(x: m.x - g.x, y: m.y - g.y))
+    }
+    override func mouseUp(with event: NSEvent) { grab = nil }
+}
+
 /// A small always-on-desktop panel (below normal windows, above the icons). Draggable; remembers its position.
 final class BatteryWidget {
     private let model = BatteryModel()
     private var panel: NSPanel?
-    private var host: NSHostingView<BatteryWidgetView>?
+    private var host: DragHostingView<BatteryWidgetView>?
     private var bag = Set<AnyCancellable>()
     private let posKey = "batteryWidgetTopLeft"
 
@@ -59,14 +77,14 @@ final class BatteryWidget {
     }
 
     private func build() {
-        let h = NSHostingView(rootView: BatteryWidgetView(model: model))
+        let h = DragHostingView(rootView: BatteryWidgetView(model: model))
         let p = NSPanel(contentRect: CGRect(origin: .zero, size: h.fittingSize),
                         styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
         p.level = NSWindow.Level(rawValue: Int(CGWindowLevelForKey(.desktopIconWindow)) + 1)
         p.isOpaque = false
         p.backgroundColor = .clear
         p.hasShadow = false
-        p.isMovableByWindowBackground = true
+        p.isMovableByWindowBackground = false   // dragging is handled by DragHostingView
         p.collectionBehavior = [.canJoinAllSpaces, .stationary, .ignoresCycle]
         p.contentView = h
         panel = p; host = h
