@@ -94,6 +94,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             m.addItem(mb)
         }
 
+        if Settings.menuBarEnabled {
+            let dbg = NSMenuItem(title: "Debug: menu bar layout…", action: #selector(showMenuBarLayout), keyEquivalent: "")
+            dbg.target = self
+            m.addItem(dbg)
+        }
+
         let cb = NSMenuItem(title: "Clipboard history (\(ShortcutStore.get(.clipboard).display))",
                             action: #selector(toggleClipboard), keyEquivalent: "")
         cb.state = Settings.clipboardEnabled ? .on : .off; cb.target = self
@@ -128,6 +134,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     @objc private func toggleWindowless() { Settings.showWindowlessApps.toggle(); rebuildMenu() }
     @objc private func toggleBattery() { Settings.batteryWidgetEnabled.toggle(); applySettings() }
     @objc private func toggleClipboard() { Settings.clipboardEnabled.toggle(); applySettings() }
+    @objc private func showMenuBarLayout() {
+        let a = NSAlert()
+        a.messageText = "Menu bar layout"
+        a.informativeText = menuBar.layoutReport()
+        a.addButton(withTitle: "OK")
+        NSApp.activate(ignoringOtherApps: true)
+        a.runModal()
+    }
     @objc private func toggleMenuBar() { menuBar.toggle(); rebuildMenu() }
     @objc private func showClipboard() { clipboardPanel.toggle() }
     @objc private func openSettings() { settingsWindow.show() }

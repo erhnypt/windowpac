@@ -84,5 +84,25 @@ final class MenuBarManager: NSObject {
         }
     }
 
+    /// Troubleshooting: where every menu bar item currently is (x position, left → right).
+    func layoutReport() -> String {
+        let info = (CGWindowListCopyWindowInfo([.optionAll], kCGNullWindowID) as? [[String: Any]]) ?? []
+        let mine = Set([toggleItem, separator].compactMap { $0?.button?.window?.windowNumber }
+                       + dividers.compactMap { $0.button?.window?.windowNumber })
+        var rows: [(CGFloat, String)] = []
+        for d in info where (d[kCGWindowLayer as String] as? Int) == 25 {
+            guard let b = d[kCGWindowBounds as String] as? [String: CGFloat], let x = b["X"], let w = b["Width"] else { continue }
+            let owner = d[kCGWindowOwnerName as String] as? String ?? "?"
+            let n = d[kCGWindowNumber as String] as? Int ?? -1
+            let tag = n == separator?.button?.window?.windowNumber ? "  ← SEPARATOR"
+                : (mine.contains(n) ? "  ← WindowPac" : "")
+            let on = (d[kCGWindowIsOnscreen as String] as? Bool) == true ? "" : "  [offscreen]"
+            rows.append((x, "x=\(Int(x))  w=\(Int(w))  \(owner)\(on)\(tag)"))
+        }
+        let screen = NSScreen.main.map { "screen width \(Int($0.frame.width))" } ?? ""
+        return "collapsed=\(collapsed)  \(screen)  macOS \(ProcessInfo.processInfo.operatingSystemVersionString)\n\n"
+            + rows.sorted { $0.0 < $1.0 }.map { $0.1 }.joined(separator: "\n")
+    }
+
     @objc private func clicked() { toggle() }
 }
