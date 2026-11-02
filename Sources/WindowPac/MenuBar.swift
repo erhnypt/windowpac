@@ -180,8 +180,7 @@ final class MenuBarManager: NSObject {
             // Everything at or above the status layer (all menu bar icons, and this cover) stays out of the picture.
             let excluded = content.windows.filter { $0.windowLayer >= 25 }
             let cfg = SCStreamConfiguration()
-            let scale = NSScreen.screens.first(where: { $0.frame.intersects(CGRect(x: rect.minX, y: self?.primaryHeight ?? 0 - rect.maxY,
-                                                                                    width: rect.width, height: rect.height)) })?.backingScaleFactor ?? 2
+            let scale = NSScreen.screens.first?.backingScaleFactor ?? 2
             cfg.sourceRect = CGRect(x: rect.minX - bounds.minX, y: rect.minY - bounds.minY, width: rect.width, height: rect.height)
             cfg.width = max(1, Int(rect.width * scale)); cfg.height = max(1, Int(rect.height * scale))
             cfg.showsCursor = false
