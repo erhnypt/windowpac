@@ -59,7 +59,17 @@ final class Switcher {
             }
         }
 
-        // Windows on other Spaces: AX doesn't list them, CGWindowList does.
+        // Windows on other Spaces: AX doesn't list them, CGWindowList does. Browsers and Electron apps keep many
+        // invisible helper windows, so only accept ones that look like real windows:
+        //  - a title (readable with Screen Recording permission; without it, at most one per app)
+        //  - bounds that lie on one of the displays
+        let canReadTitles = CGPreflightScreenCaptureAccess()
+        let primaryH = NSScreen.screens.first?.frame.height ?? 0
+        let displayRects = NSScreen.screens.map {
+            CGRect(x: $0.frame.minX, y: primaryH - $0.frame.maxY, width: $0.frame.width, height: $0.frame.height)
+        }
+        var untitledPids = Set<pid_t>()
+        var seenTitles = Set<String>()
         for d in info {
             guard let n = d[kCGWindowNumber as String] as? UInt32, !seen.contains(n),
                   (d[kCGWindowLayer as String] as? Int) == 0,
@@ -69,7 +79,14 @@ final class Switcher {
                   let app = NSRunningApplication(processIdentifier: pid), app.activationPolicy == .regular,
                   let b = d[kCGWindowBounds as String] as? [String: CGFloat],
                   (b["Width"] ?? 0) >= 200, (b["Height"] ?? 0) >= 100 else { continue }
+            let frame = CGRect(x: b["X"] ?? 0, y: b["Y"] ?? 0, width: b["Width"] ?? 0, height: b["Height"] ?? 0)
+            guard displayRects.contains(where: { $0.intersects(frame) }) else { continue }
             let title = d[kCGWindowName as String] as? String ?? ""
+            if canReadTitles {
+                guard !title.isEmpty, seenTitles.insert("\(pid)|\(title)").inserted else { continue }
+            } else {
+                guard untitledPids.insert(pid).inserted, !pidsWithItems.contains(pid) else { continue }
+            }
             pidsWithItems.insert(pid)
             ranked.append((order[n] ?? Int.max,
                            WinItem(pid: pid, appName: app.localizedName ?? "?", title: title,
