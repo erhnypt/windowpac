@@ -118,6 +118,18 @@ private struct SettingsView: View {
                 Button("Clear unpinned history") { ClipboardStore.shared.clear() }
                 Text("Pinned items are never removed and always saved. Passwords copied from password managers are not recorded.").font(.caption).foregroundStyle(.secondary)
             }
+            Section("Menu bar") {
+                Toggle("Hide / show menu bar icons (‹ ›)", isOn: flag({ Settings.menuBarEnabled }, { Settings.menuBarEnabled = $0 }))
+                Stepper("Dividers ( | ): \(Settings.menuBarDividers)",
+                        value: Binding(get: { Settings.menuBarDividers }, set: { Settings.menuBarDividers = $0; refresh += 1; notifyChanged() }),
+                        in: 0...3)
+                Picker("Hide again after", selection: Binding(get: { Settings.menuBarAutoHide },
+                                                              set: { Settings.menuBarAutoHide = $0; refresh += 1; notifyChanged() })) {
+                    Text("Never").tag(0); Text("5 seconds").tag(5); Text("10 seconds").tag(10); Text("30 seconds").tag(30)
+                }
+                Text("Show the icons with ›, then hold ⌘ and drag an icon to the left of the | separator to hide it, or to the right to keep it visible. Extra dividers split the visible area into blocks.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
             Section("Other") {
                 Toggle("Desktop battery widget", isOn: flag({ Settings.batteryWidgetEnabled }, { Settings.batteryWidgetEnabled = $0 }))
                 Toggle("Launch at login", isOn: flag({ LoginItem.isEnabled }, { LoginItem.set($0) }))
