@@ -16,7 +16,7 @@ lipo -create -output "$BIN" \
 
 APP="build/WindowPac.app"
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/WindowPac"
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -26,6 +26,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleDisplayName</key><string>WindowPac</string>
   <key>CFBundleIdentifier</key><string>com.windowpac.app</string>
   <key>CFBundleExecutable</key><string>WindowPac</string>
+  <key>CFBundleIconFile</key><string>AppIcon</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>1.0</string>
   <key>CFBundleVersion</key><string>1</string>
@@ -33,6 +34,17 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>LSUIElement</key><true/>
 </dict></plist>
 PLIST
+
+# App icon: Resources/AppIcon.png (1024 px) → AppIcon.icns with the tools that ship with macOS.
+if [ -f Resources/AppIcon.png ]; then
+  ICONSET="$(mktemp -d)/AppIcon.iconset"
+  mkdir -p "$ICONSET"
+  for SIZE in 16 32 128 256 512; do
+    sips -z "$SIZE" "$SIZE" Resources/AppIcon.png --out "$ICONSET/icon_${SIZE}x${SIZE}.png" >/dev/null
+    sips -z "$((SIZE * 2))" "$((SIZE * 2))" Resources/AppIcon.png --out "$ICONSET/icon_${SIZE}x${SIZE}@2x.png" >/dev/null
+  done
+  iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
+fi
 
 # Use the stable local identity if present (run scripts/make-cert.sh once); otherwise ad-hoc,
 # in which case macOS forgets the Accessibility / Input Monitoring grants on every rebuild.
