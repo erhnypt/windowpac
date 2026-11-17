@@ -57,7 +57,10 @@ works on current macOS.
 ## Battery widget
 
 A small panel on the desktop (below windows, draggable, position remembered) shows the Mac's charge and
-the charge of connected Bluetooth devices (mouse, keyboard, AirPods incl. L/R/case). Toggle in the menu.
+the charge of **every** connected Bluetooth device that reports one: keyboard, mouse, trackpad, game controller,
+headphones, AirPods (incl. L/R/case). Sources: `system_profiler`, the IO registry (Apple Magic devices and most
+HID devices) and the standard BLE Battery Service (third-party keyboards/mice, e.g. Logitech; macOS asks for the
+Bluetooth permission once). Toggle in the menu.
 It is **not** shown on the lock screen: macOS does not let third-party apps draw there.
 
 ## App icon

@@ -32,6 +32,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleVersion</key><string>1</string>
   <key>LSMinimumSystemVersion</key><string>14.0</string>
   <key>LSUIElement</key><true/>
+  <key>NSBluetoothAlwaysUsageDescription</key><string>WindowPac reads the battery level of your connected Bluetooth keyboards, mice and headphones.</string>
 </dict></plist>
 PLIST
 
