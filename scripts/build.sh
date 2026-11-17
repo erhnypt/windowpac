@@ -1,23 +1,26 @@
 #!/usr/bin/env bash
-# Builds a universal (Apple Silicon + Intel) WindowPac.app. Run on a Mac.
+# Builds WindowPac.app (this Mac's architecture; UNIVERSAL=1 for Apple Silicon + Intel). Run on a Mac.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-# Build each architecture separately (works with Command Line Tools only, no full Xcode),
-# then merge into one universal binary.
-for ARCH in arm64 x86_64; do
-  swift build -c release --triple "$ARCH-apple-macosx14.0" --scratch-path ".build/$ARCH"
+# Default: only this Mac's architecture (about half the size). UNIVERSAL=1 ./scripts/build.sh builds
+# Apple Silicon + Intel. Built per architecture (works with Command Line Tools only, no full Xcode).
+if [ "${UNIVERSAL:-0}" = "1" ]; then ARCHS="arm64 x86_64"; else ARCHS="$(uname -m)"; fi
+BINS=()
+for ARCH in $ARCHS; do
+  swift build -c release -Xswiftc -Osize --triple "$ARCH-apple-macosx14.0" --scratch-path ".build/$ARCH"
+  BINS+=(".build/$ARCH/$ARCH-apple-macosx/release/WindowPac")
 done
 mkdir -p build
-BIN="build/WindowPac-universal"
-lipo -create -output "$BIN" \
-  ".build/arm64/arm64-apple-macosx/release/WindowPac" \
-  ".build/x86_64/x86_64-apple-macosx/release/WindowPac"
+BIN="build/WindowPac-bin"
+if [ "${#BINS[@]}" -gt 1 ]; then lipo -create -output "$BIN" "${BINS[@]}"; else cp "${BINS[0]}" "$BIN"; fi
+strip -x "$BIN"
 
 APP="build/WindowPac.app"
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/WindowPac"
+rm -f "$BIN"
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
