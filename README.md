@@ -33,7 +33,9 @@ turn that off in Settings → Features to keep it in memory only.
 
 **Pinning:** click the pin icon on an entry (or ⌘P on the selected one). Pinned entries stay at the top, are not
 counted against the item limit, survive "Clear unpinned" and are always saved to disk, even when
-"keep after restart" is off. Unpin an entry first to delete it.
+"keep after restart" is off. Unpin an entry first to delete it. When you pin, you can type an optional name
+(e.g. "work email"); the name is shown on the entry and searchable, but clicking it still pastes the original
+content. Use the pencil icon on a pinned entry to rename it.
 
 **Snippets:** named notes you create in Settings → Clipboard. They sit at the top of the panel, are always saved and
 never removed automatically.
