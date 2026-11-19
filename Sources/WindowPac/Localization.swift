@@ -118,6 +118,8 @@ enum L {
         "%d files": "%d dosya",
         "Image %@": "Resim %@",
         "Unpin": "Sabitlemeyi kaldır",
+        "Rename": "Yeniden adlandır",
+        "Name this pin (optional) — ↩ save, ⎋ cancel": "Sabitlemeye bir isim ver (isteğe bağlı) — ↩ kaydet, ⎋ vazgeç",
         "Pin (never deleted)": "Sabitle (asla silinmez)",
 
         // Hidden menu bar card

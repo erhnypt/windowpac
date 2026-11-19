@@ -14,10 +14,14 @@ struct ClipItem: Identifiable, Codable, Equatable {
     var pinned = false
     /// Set for snippets: named notes created in Settings. Always pinned, only removable from Settings.
     var title: String?
+    /// Optional label the user gave when pinning from the panel. Unlike snippets these stay unpinnable/removable.
+    var name: String?
     var imageFile: String?
     var imageSize: String?
 
     var isSnippet: Bool { title != nil }
+    /// The label to show: a snippet's title, or the name given when pinning.
+    var label: String? { title ?? name }
     var paths: [String] { kind == .files ? text.split(separator: "\n").map(String.init) : [] }
 
     init(text: String, date: Date) { self.text = text; self.date = date }
@@ -31,6 +35,7 @@ struct ClipItem: Identifiable, Codable, Equatable {
         pinned = try c.decodeIfPresent(Bool.self, forKey: .pinned) ?? false
         kind = try c.decodeIfPresent(ClipKind.self, forKey: .kind) ?? .text
         title = try c.decodeIfPresent(String.self, forKey: .title)
+        name = try c.decodeIfPresent(String.self, forKey: .name)
         imageFile = try c.decodeIfPresent(String.self, forKey: .imageFile)
         imageSize = try c.decodeIfPresent(String.self, forKey: .imageSize)
     }
@@ -157,6 +162,16 @@ final class ClipboardStore: ObservableObject {
     func togglePin(_ item: ClipItem) {
         guard let i = items.firstIndex(where: { $0.id == item.id }), !items[i].isSnippet else { return }
         items[i].pinned.toggle()
+        if !items[i].pinned { items[i].name = nil }
+        save()
+    }
+
+    /// Pins the item (if needed) with an optional name, or renames an already pinned one.
+    func pin(_ item: ClipItem, name: String) {
+        guard let i = items.firstIndex(where: { $0.id == item.id }), !items[i].isSnippet else { return }
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        items[i].pinned = true
+        items[i].name = trimmed.isEmpty ? nil : trimmed
         save()
     }
 
@@ -315,6 +330,10 @@ private struct ClipboardView: View {
     @State private var query = ""
     @State private var selection = 0
     @FocusState private var focused: Bool
+    @FocusState private var nameFocused: Bool
+    /// The entry being pinned/renamed; while set, the search field is replaced by a name field.
+    @State private var naming: ClipItem?
+    @State private var nameDraft = ""
 
     private static let rel: RelativeDateTimeFormatter = {
         let f = RelativeDateTimeFormatter(); f.unitsStyle = .short; return f
@@ -322,9 +341,9 @@ private struct ClipboardView: View {
 
     private func matches(_ it: ClipItem, _ q: String) -> Bool {
         switch it.kind {
-        case .image: return "image".contains(q.lowercased()) || (it.imageSize ?? "").contains(q)
-        case .files: return it.text.localizedCaseInsensitiveContains(q)
-        case .text: return it.text.localizedCaseInsensitiveContains(q) || (it.title ?? "").localizedCaseInsensitiveContains(q)
+        case .image: return "image".contains(q.lowercased()) || (it.imageSize ?? "").contains(q) || (it.label ?? "").localizedCaseInsensitiveContains(q)
+        case .files: return it.text.localizedCaseInsensitiveContains(q) || (it.label ?? "").localizedCaseInsensitiveContains(q)
+        case .text: return it.text.localizedCaseInsensitiveContains(q) || (it.label ?? "").localizedCaseInsensitiveContains(q)
         }
     }
 
@@ -334,8 +353,24 @@ private struct ClipboardView: View {
         return base.filter(\.isSnippet) + base.filter { $0.pinned && !$0.isSnippet } + base.filter { !$0.pinned }
     }
 
+    /// Unpinned → ask for an optional name first; pinned → unpin.
     private func togglePin(_ item: ClipItem) {
-        store.togglePin(item)
+        if item.pinned { store.togglePin(item); keepSelection(item) } else { beginNaming(item) }
+    }
+
+    private func beginNaming(_ item: ClipItem) {
+        nameDraft = item.name ?? ""
+        naming = item
+        DispatchQueue.main.async { nameFocused = true }
+    }
+
+    private func endNaming(save: Bool) {
+        if save, let item = naming { store.pin(item, name: nameDraft); keepSelection(item) }
+        naming = nil
+        DispatchQueue.main.async { focused = true }
+    }
+
+    private func keepSelection(_ item: ClipItem) {
         // Keep the selection on the same entry after it moved.
         DispatchQueue.main.async { if let i = filtered.firstIndex(where: { $0.id == item.id }) { selection = i } }
     }
@@ -351,6 +386,18 @@ private struct ClipboardView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            if naming != nil {
+                HStack(spacing: 8) {
+                    Image(systemName: "pin.fill").foregroundStyle(Color.accentColor)
+                    TextField(L.t("Name this pin (optional) — ↩ save, ⎋ cancel"), text: $nameDraft)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 15))
+                        .focused($nameFocused)
+                        .onKeyPress(.escape) { endNaming(save: false); return .handled }
+                        .onSubmit { endNaming(save: true) }
+                }
+                .padding(12)
+            } else {
             TextField(L.t("Search clipboard history…"), text: $query)
                 .textFieldStyle(.plain)
                 .font(.system(size: 15))
@@ -365,6 +412,7 @@ private struct ClipboardView: View {
                 }
                 .onSubmit { pickSelected() }
                 .onChange(of: query) { _, _ in selection = 0 }
+            }
             Divider()
             if filtered.isEmpty {
                 Spacer()
@@ -400,9 +448,9 @@ private struct ClipboardView: View {
     }
 
     @ViewBuilder private func content(_ item: ClipItem) -> some View {
-        if item.isSnippet {
+        if item.isSnippet || (item.label != nil && item.kind == .text) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(item.title ?? "").font(.system(size: 12, weight: .semibold)).lineLimit(1)
+                Text(item.label ?? "").font(.system(size: 12, weight: .semibold)).lineLimit(1)
                 Text(item.text.trimmingCharacters(in: .whitespacesAndNewlines))
                     .font(.system(size: 11)).foregroundStyle(.secondary).lineLimit(1)
             }
@@ -412,10 +460,12 @@ private struct ClipboardView: View {
                 Text(item.text.trimmingCharacters(in: .whitespacesAndNewlines))
                     .font(.system(size: 12)).lineLimit(2).truncationMode(.tail)
             case .files:
+                if let n = item.label { Text(n).font(.system(size: 12, weight: .semibold)).lineLimit(1) }
                 let names = item.paths.map { ($0 as NSString).lastPathComponent }
                 Text(names.joined(separator: ", ")).font(.system(size: 12)).lineLimit(2).truncationMode(.middle)
                 Text(names.count == 1 ? L.t("File") : L.f("%d files", names.count)).font(.system(size: 10)).foregroundStyle(.secondary)
             case .image:
+                if let n = item.label { Text(n).font(.system(size: 12, weight: .semibold)).lineLimit(1) }
                 if let img = store.thumbnail(for: item) {
                     Image(nsImage: img).resizable().scaledToFit().frame(maxWidth: 180, maxHeight: 54, alignment: .leading)
                 }
@@ -438,6 +488,10 @@ private struct ClipboardView: View {
                 Button { togglePin(item) } label: { Image(systemName: item.pinned ? "pin.fill" : "pin") }
                     .buttonStyle(.plain).foregroundStyle(item.pinned ? Color.accentColor : Color.secondary)
                     .help(item.pinned ? L.t("Unpin") : L.t("Pin (never deleted)"))
+                if item.pinned {
+                    Button { beginNaming(item) } label: { Image(systemName: "pencil") }
+                        .buttonStyle(.plain).foregroundStyle(.secondary).help(L.t("Rename"))
+                }
                 if !item.pinned {
                     Button { store.remove(item) } label: { Image(systemName: "xmark.circle.fill") }
                         .buttonStyle(.plain).foregroundStyle(.tertiary)
