@@ -330,7 +330,6 @@ private struct ClipboardView: View {
     @State private var query = ""
     @State private var selection = 0
     @FocusState private var focused: Bool
-    @FocusState private var nameFocused: Bool
     /// The entry being pinned/renamed; while set, the search field is replaced by a name field.
     @State private var naming: ClipItem?
     @State private var nameDraft = ""
@@ -361,7 +360,7 @@ private struct ClipboardView: View {
     private func beginNaming(_ item: ClipItem) {
         nameDraft = item.name ?? ""
         naming = item
-        DispatchQueue.main.async { nameFocused = true }
+        DispatchQueue.main.async { focused = true }
     }
 
     private func endNaming(save: Bool) {
@@ -386,33 +385,25 @@ private struct ClipboardView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if naming != nil {
-                HStack(spacing: 8) {
-                    Image(systemName: "pin.fill").foregroundStyle(Color.accentColor)
-                    TextField(L.t("Name this pin (optional) — ↩ save, ⎋ cancel"), text: $nameDraft)
-                        .textFieldStyle(.plain)
-                        .font(.system(size: 15))
-                        .focused($nameFocused)
-                        .onKeyPress(.escape) { endNaming(save: false); return .handled }
-                        .onSubmit { endNaming(save: true) }
-                }
-                .padding(12)
-            } else {
-            TextField(L.t("Search clipboard history…"), text: $query)
-                .textFieldStyle(.plain)
-                .font(.system(size: 15))
-                .padding(12)
-                .focused($focused)
-                .onKeyPress(.downArrow) { move(1); return .handled }
-                .onKeyPress(.upArrow) { move(-1); return .handled }
-                .onKeyPress(.escape) { onClose(); return .handled }
-                .onKeyPress(characters: CharacterSet(charactersIn: "pP"), phases: .down) { press in
-                    guard press.modifiers.contains(.command), filtered.indices.contains(selection) else { return .ignored }
-                    togglePin(filtered[selection]); return .handled
-                }
-                .onSubmit { pickSelected() }
-                .onChange(of: query) { _, _ in selection = 0 }
+            // One text field serves both search and naming, so it keeps keyboard focus when the mode changes.
+            HStack(spacing: 8) {
+                if naming != nil { Image(systemName: "pin.fill").foregroundStyle(Color.accentColor) }
+                TextField(naming != nil ? L.t("Name this pin (optional) — ↩ save, ⎋ cancel") : L.t("Search clipboard history…"),
+                          text: naming != nil ? $nameDraft : $query)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 15))
+                    .focused($focused)
+                    .onKeyPress(.downArrow) { if naming == nil { move(1) }; return .handled }
+                    .onKeyPress(.upArrow) { if naming == nil { move(-1) }; return .handled }
+                    .onKeyPress(.escape) { if naming != nil { endNaming(save: false) } else { onClose() }; return .handled }
+                    .onKeyPress(characters: CharacterSet(charactersIn: "pP"), phases: .down) { press in
+                        guard naming == nil, press.modifiers.contains(.command), filtered.indices.contains(selection) else { return .ignored }
+                        togglePin(filtered[selection]); return .handled
+                    }
+                    .onSubmit { if naming != nil { endNaming(save: true) } else { pickSelected() } }
+                    .onChange(of: query) { _, _ in selection = 0 }
             }
+            .padding(12)
             Divider()
             if filtered.isEmpty {
                 Spacer()
